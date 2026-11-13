@@ -1,0 +1,3053 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>旅遊行程管理控制台｜高端旅遊雜誌編輯風 × GitHub Gist 雲端同步</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700;900&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            washi: '#F6F3EC',
+            paper: '#FFFFFF',
+            sand: '#E5DFD3',
+            sandDark: '#D2C9B8',
+            hinoki: '#1B4D3E',
+            hinokiDark: '#12362B',
+            hinokiLight: '#EBF2EF',
+            terracotta: '#C85A32',
+            terracottaDark: '#A84622',
+            terracottaLight: '#FBECE6',
+            brass: '#B08938',
+            brassLight: '#F8F3E6',
+            ink: '#1E2022',
+            stoneWarm: '#5C5852'
+          },
+          fontFamily: {
+            serif: ['"Noto Serif TC"', 'Georgia', 'serif'],
+            sans: ['"Noto Sans TC"', '"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', '"Plus Jakarta Sans"', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Noto Sans TC', 'Plus Jakarta Sans', sans-serif;
+      background-color: #F6F3EC;
+      background-image:
+        linear-gradient(to right, rgba(27, 77, 62, 0.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(27, 77, 62, 0.045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: #1E2022;
+    }
+
+    .editorial-card {
+      background-color: #FFFFFF;
+      border: 1px solid #E5DFD3;
+      box-shadow: 0 4px 20px -4px rgba(30, 32, 34, 0.06), 0 1px 3px rgba(30, 32, 34, 0.03);
+    }
+
+    .boarding-pass {
+      position: relative;
+      background: linear-gradient(135deg, #FFFFFF 0%, #FCFBF8 100%);
+      border: 1px solid #D9D0C1;
+      box-shadow: 0 10px 30px -8px rgba(27, 77, 62, 0.14);
+    }
+
+    @media (min-width: 1024px) {
+      .ticket-divider {
+        position: relative;
+        border-right: 2px dashed #D2C9B8;
+      }
+      .ticket-divider::before,
+      .ticket-divider::after {
+        content: '';
+        position: absolute;
+        right: -11px;
+        width: 20px;
+        height: 20px;
+        background-color: #F6F3EC;
+        border: 1px solid #D9D0C1;
+        border-radius: 9999px;
+        z-index: 10;
+      }
+      .ticket-divider::before { top: -27px; }
+      .ticket-divider::after { bottom: -27px; }
+    }
+
+    @media (max-width: 1023px) {
+      .ticket-divider {
+        border-bottom: 2px dashed #D2C9B8;
+        padding-bottom: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+    }
+
+    .timeline-spine { position: relative; }
+    @media (min-width: 768px) {
+      .timeline-spine::before {
+        content: '';
+        position: absolute;
+        left: 7.75rem;
+        top: 1.25rem;
+        bottom: 1.25rem;
+        width: 2px;
+        background: repeating-linear-gradient(
+          to bottom,
+          #1B4D3E 0px,
+          #1B4D3E 6px,
+          transparent 6px,
+          transparent 11px
+        );
+        opacity: 0.35;
+      }
+    }
+
+    .drag-over {
+      border: 2px dashed #C85A32 !important;
+      background-color: #FBECE6 !important;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #EDE8DD; }
+    ::-webkit-scrollbar-thumb { background: #B8AF9E; border-radius: 9999px; }
+  </style>
+</head>
+<body class="min-h-screen pb-20 selection:bg-hinoki selection:text-white">
+
+  <!-- Toast Banner Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Editorial Masthead, Cloud Sync Pill & Multi-Trip Switcher -->
+  <header class="bg-hinoki text-white border-b-4 border-brass shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <!-- Brand & Live Sync Indicators -->
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-widest rounded bg-brass text-hinokiDark">
+              EDITION 2026 • TAIPEI JOURNAL
+            </span>
+            <span id="save-indicator" class="text-xs font-mono text-emerald-200/90 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-300 inline-block"></span> 本機已就緒
+            </span>
+            <!-- Cloud Sync Status Pill -->
+            <button onclick="openGistModal()" id="cloud-status-pill" title="點擊開啟 GitHub Gist 雲端同步設定" class="px-2.5 py-0.5 rounded-full bg-hinokiDark/90 hover:bg-hinokiDark border border-white/25 text-xs font-mono flex items-center gap-1.5 transition cursor-pointer">
+              <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-stone-400"></span>
+              <span id="cloud-status-text" class="text-amber-100">☁️ 雲端未綁定</span>
+            </button>
+          </div>
+          <h1 class="font-serif text-xl sm:text-2xl font-bold tracking-wide text-white">
+            旅途手帖・行程與交通調度控制台
+          </h1>
+        </div>
+
+        <!-- Multi-Trip Switcher & Cloud Sync Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Cloud Sync Buttons -->
+          <button onclick="openGistModal()" class="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-amber-100 text-xs font-bold border border-amber-300/40 transition flex items-center gap-1">
+            ☁️ 雲端同步設定
+          </button>
+          <button onclick="manualSyncNow()" id="btn-sync-now" class="px-3 py-2 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold border border-emerald-400/40 transition flex items-center gap-1">
+            🔄 立即同步
+          </button>
+
+          <!-- Trip Switcher -->
+          <div class="flex items-center bg-hinokiDark/80 border border-white/20 rounded-xl px-2.5 py-1.5">
+            <label for="trip-switcher" class="text-xs text-amber-200/90 font-medium mr-2 whitespace-nowrap">手帖：</label>
+            <select id="trip-switcher" onchange="switchTrip(this.value)" class="bg-transparent text-white text-xs sm:text-sm font-bold focus:outline-none max-w-[190px] sm:max-w-xs cursor-pointer">
+            </select>
+          </div>
+
+          <button onclick="openTripModal(false)" class="px-3 py-2 rounded-xl bg-brass hover:bg-amber-500 text-hinokiDark text-xs font-bold transition shadow-xs">
+            ＋ 新增旅程
+          </button>
+          <button onclick="openTripModal(true)" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium border border-white/20 transition">
+            ✏️ 編輯旅程
+          </button>
+          <button onclick="requestDeleteTrip()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-terracotta text-rose-100 text-xs font-medium border border-white/20 transition">
+            🗑️ 刪除旅程
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-6 space-y-6">
+
+    <!-- Tactile Boarding Pass & Hotel Keycard Overview -->
+    <section class="boarding-pass rounded-2xl overflow-hidden">
+      <div class="bg-hinokiDark text-white px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+        <div class="flex items-center gap-3">
+          <span class="tracking-widest font-bold text-brass">BOARDING PASS &amp; HOTEL VOUCHER</span>
+          <span class="hidden sm:inline text-white/40">|</span>
+          <span id="ticket-trip-dates" class="text-emerald-100">2026-12-12 (SAT) — 2026-12-15 (TUE)</span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="openItemModal()" class="px-3 py-1 rounded-lg bg-terracotta hover:bg-terracottaDark text-white font-sans font-bold text-xs transition shadow-xs">
+            ＋ 新增行程項目
+          </button>
+          <button onclick="exportData()" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-sans text-xs transition">
+            匯出 JSON 備份
+          </button>
+          <label class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-sans text-xs transition cursor-pointer">
+            匯入 JSON
+            <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)" />
+          </label>
+          <button onclick="requestResetDefault()" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-amber-700/80 text-amber-200 font-sans text-xs transition">
+            重置預設台北行程
+          </button>
+        </div>
+      </div>
+
+      <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <!-- Flight Section -->
+        <div class="lg:col-span-7 ticket-divider lg:pr-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-mono uppercase tracking-widest text-stoneWarm font-semibold">FLIGHT ITINERARY • 航班登機資訊</span>
+            <span id="ticket-pnr" class="px-2.5 py-0.5 rounded bg-brassLight border border-brass/30 text-brass font-mono text-xs font-bold">PNR / 訂單：QGGF9B</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-xl bg-washi/80 border border-sand p-3.5">
+              <div class="flex items-center justify-between text-[11px] font-mono text-hinoki font-bold mb-1">
+                <span>OUTBOUND • 去程</span>
+                <span id="ticket-out-date">12/12（週六）</span>
+              </div>
+              <div id="ticket-out-main" class="font-mono text-sm sm:text-base font-bold text-ink">
+                HKG 12:10 ➔ TPE 13:55
+              </div>
+              <div id="ticket-out-sub" class="text-xs text-stoneWarm mt-1">
+                HK Express UO112｜香港客運大樓 2 ➔ 桃園第一航廈
+              </div>
+            </div>
+
+            <div class="rounded-xl bg-washi/80 border border-sand p-3.5">
+              <div class="flex items-center justify-between text-[11px] font-mono text-terracotta font-bold mb-1">
+                <span>INBOUND • 回程</span>
+                <span id="ticket-in-date">12/15（週二）</span>
+              </div>
+              <div id="ticket-in-main" class="font-mono text-sm sm:text-base font-bold text-ink">
+                TPE 21:15 ➔ HKG 23:25
+              </div>
+              <div id="ticket-in-sub" class="text-xs text-stoneWarm mt-1">
+                HK Express UO117｜桃園第一航廈 ➔ 香港客運大樓 1
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hotel Keycard Section -->
+        <div class="lg:col-span-5 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-mono uppercase tracking-widest text-stoneWarm font-semibold">ACCOMMODATION KEYCARD • 下榻旅宿</span>
+            <button onclick="copyHotelAddress()" class="text-xs font-semibold text-hinoki hover:text-terracotta underline">
+              複製飯店地址
+            </button>
+          </div>
+          <h2 id="ticket-hotel-name" class="font-serif text-lg sm:text-xl font-bold text-hinoki leading-snug">
+            台北東驛商務旅館 Taipei East Dragon Hotel
+          </h2>
+          <p id="ticket-hotel-addr" class="text-xs sm:text-sm text-stoneWarm leading-relaxed">
+            台北市萬華區昆明街76號8樓（捷運西門站 6 號出口步行約 5–7 分鐘｜15:00 後入住、12:00 前退房）
+          </p>
+          <div class="pt-1 flex flex-wrap gap-2 text-[11px] font-mono">
+            <span class="px-2 py-0.5 rounded bg-hinokiLight text-hinoki font-semibold">CHECK-IN 15:00</span>
+            <span class="px-2 py-0.5 rounded bg-hinokiLight text-hinoki font-semibold">CHECK-OUT 12:00</span>
+            <span class="px-2 py-0.5 rounded bg-brassLight text-brass font-semibold">24H FRONT DESK</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Real-time Conflict Detector Banner -->
+    <section id="conflict-banner" class="hidden rounded-2xl border-2 border-terracotta bg-terracottaLight p-4 shadow-sm">
+      <div class="flex items-start gap-3">
+        <div class="p-2 bg-terracotta text-white rounded-xl shrink-0 mt-0.5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div class="flex-1">
+          <h2 class="font-serif text-sm sm:text-base font-bold text-terracottaDark">
+            行程調度警示：偵測到 <span id="conflict-count" class="font-mono underline">0</span> 項時間、車程或公休衝突
+          </h2>
+          <ul id="conflict-list" class="mt-1.5 space-y-1 text-xs sm:text-sm text-ink list-disc list-inside"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- All Clear Banner -->
+    <section id="all-clear-banner" class="rounded-2xl border border-hinoki/25 bg-hinokiLight/90 px-4 py-3 flex items-center justify-between text-xs sm:text-sm text-hinokiDark">
+      <div class="flex items-center gap-2 font-medium">
+        <span class="w-2.5 h-2.5 rounded-full bg-hinoki"></span>
+        <span>時間軸與交通接駁檢查正常：目前無時間重疊、車程不足或公休／午休時段衝突。</span>
+      </div>
+      <span class="font-mono text-xs text-hinoki/80 hidden md:inline">AUTO-SYNC &amp; CONFLICT CHECK ACTIVE</span>
+    </section>
+
+    <!-- Editorial Metric Strip -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="editorial-card rounded-2xl p-4">
+        <div class="text-xs font-medium text-stoneWarm">預計步行距離與負擔等級</div>
+        <div class="mt-1.5 flex items-baseline gap-2 flex-wrap">
+          <span id="kpi-walk-km" class="font-mono text-xl sm:text-2xl font-bold text-ink">0.0 km</span>
+          <span id="kpi-walk-badge" class="px-2 py-0.5 text-xs font-semibold rounded-md bg-washi text-stoneWarm">計算中</span>
+        </div>
+        <div id="kpi-walk-sub" class="text-xs text-stoneWarm mt-1">依目前篩選範圍計算</div>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-4">
+        <div class="text-xs font-medium text-stoneWarm">預估交通與轉乘總車程</div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpi-transit-mins" class="font-mono text-xl sm:text-2xl font-bold text-hinoki">0 分鐘</span>
+        </div>
+        <div class="text-xs text-stoneWarm mt-1">含捷運、機場捷運、公車與接駁</div>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-4">
+        <div class="text-xs font-medium text-stoneWarm">待確認／未預約行程項目</div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpi-pending-count" class="font-mono text-xl sm:text-2xl font-bold text-terracotta">0 項</span>
+          <span class="text-xs text-stoneWarm">需行前或現場確認</span>
+        </div>
+        <div class="text-xs text-stoneWarm mt-1">餐廳訂位、觀景台門票與現貨</div>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-4">
+        <div class="text-xs font-medium text-stoneWarm">採購與追蹤清單統計</div>
+        <div class="mt-1.5 flex flex-wrap gap-1.5 text-xs font-semibold" id="kpi-shopping-stats"></div>
+        <div class="text-xs text-stoneWarm mt-1.5">可於「採購與待確認清單」更新</div>
+      </div>
+    </section>
+
+    <!-- Multi-dimensional Filter Bar -->
+    <section class="editorial-card rounded-2xl p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5 pb-2.5 border-b border-sand">
+        <h2 class="font-serif text-sm sm:text-base font-bold text-hinoki flex items-center gap-2">
+          <svg class="w-4 h-4 text-terracotta" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          多維度篩選與檢索
+        </h2>
+        <button onclick="resetFilters()" class="text-xs font-semibold text-terracotta hover:text-terracottaDark underline self-start sm:self-auto">
+          重設所有篩選條件
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">日期（Day 1 – Day N）</label>
+          <select id="filter-day" onchange="applyFilters()" class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none">
+            <option value="ALL">全部日期</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">所在地區</label>
+          <select id="filter-district" onchange="applyFilters()" class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none">
+            <option value="ALL">全部地區</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">活動類型</label>
+          <select id="filter-category" onchange="applyFilters()" class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none">
+            <option value="ALL">全部類型</option>
+            <option value="美食餐飲">美食餐飲</option>
+            <option value="景點漫步">景點漫步</option>
+            <option value="購物採買">購物採買</option>
+            <option value="夜市小吃">夜市小吃</option>
+            <option value="交通接駁">交通接駁</option>
+            <option value="住宿休息">住宿休息</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">天氣備案屬性</label>
+          <select id="filter-weather" onchange="applyFilters()" class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none">
+            <option value="ALL">全部天氣類型</option>
+            <option value="全室內">全室內</option>
+            <option value="有雨天備案">有雨天備案</option>
+            <option value="戶外為主">戶外為主</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">預約／採購狀態</label>
+          <select id="filter-status" onchange="applyFilters()" class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none">
+            <option value="ALL">全部狀態</option>
+            <option value="預約待確認">預約待確認</option>
+            <option value="待購買">待購買</option>
+            <option value="待查">待查</option>
+            <option value="已預約">已預約</option>
+            <option value="已購買">已購買</option>
+            <option value="缺貨">缺貨</option>
+            <option value="免預約">免預約</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stoneWarm mb-1">關鍵字搜尋</label>
+          <input type="text" id="filter-keyword" oninput="applyFilters()" placeholder="搜尋景點、店名、備註..." class="w-full rounded-xl border border-sandDark bg-washi/60 px-3 py-2 text-xs sm:text-sm text-ink focus:border-hinoki focus:outline-none" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Editorial Navigation Tabs -->
+    <nav class="flex overflow-x-auto gap-2 pb-1" aria-label="控制台功能分頁">
+      <button onclick="switchTab('timeline')" id="tab-btn-timeline" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-hinoki text-white shadow-sm">
+        01｜每日時間軸
+      </button>
+      <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-white text-stoneWarm hover:text-ink border border-sand">
+        02｜景點比較矩陣
+      </button>
+      <button onclick="switchTab('shopping')" id="tab-btn-shopping" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-white text-stoneWarm hover:text-ink border border-sand">
+        03｜採購與待確認清單
+      </button>
+      <button onclick="switchTab('hub')" id="tab-btn-hub" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-white text-stoneWarm hover:text-ink border border-sand">
+        04｜天氣備案與台灣防災指南
+      </button>
+    </nav>
+
+    <!-- TAB 1: Architectural Daily Timeline -->
+    <section id="tab-timeline" class="tab-panel space-y-6">
+      <div class="editorial-card rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-stoneWarm">
+        <div>
+          <span class="font-bold text-hinoki">手帳操作提示：</span>
+          點擊 <strong class="text-ink">「✏️ 編輯」</strong> 可修改時間、車程、步行量與狀態；使用 <strong class="text-ink">「↑ / ↓」</strong> 或拖曳卡片可調動順序。若已啟用雲端同步，變更將在 <strong class="text-hinoki font-mono">1.5s</strong> 後自動上傳至 GitHub Gist。
+        </div>
+        <button onclick="openItemModal()" class="px-3.5 py-2 rounded-xl bg-terracotta hover:bg-terracottaDark text-white text-xs font-bold transition shadow-xs shrink-0">
+          ＋ 新增行程項目
+        </button>
+      </div>
+      <div id="timeline-container" class="space-y-8"></div>
+    </section>
+
+    <!-- TAB 2: Venue & Rain Backup Comparison Matrix -->
+    <section id="tab-comparison" class="tab-panel hidden">
+      <div class="editorial-card rounded-2xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-sand flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-washi/50">
+          <div>
+            <h2 class="font-serif text-base sm:text-lg font-bold text-hinoki">景點與雨天備案比較矩陣</h2>
+            <p class="text-xs text-stoneWarm mt-0.5">橫向對比各核心地點之地區語言原名、室內雨天備案、距飯店／前站距離、預計步行量、營業時間與官方資料連結</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <label for="sort-comparison" class="text-stoneWarm font-semibold">排序方式：</label>
+            <select id="sort-comparison" onchange="renderComparisonTable()" class="rounded-xl border border-sandDark px-3 py-1.5 bg-white text-ink font-medium">
+              <option value="day">依行程時序（Day 1 → Day N）</option>
+              <option value="walkAsc">步行量（由少到多）</option>
+              <option value="walkDesc">步行量（由多到少）</option>
+              <option value="transitAsc">車程時間（由短到長）</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-hinoki text-white text-xs">
+                <th class="p-3.5 font-semibold whitespace-nowrap">日期與時段</th>
+                <th class="p-3.5 font-semibold min-w-[210px]">景點／店舖繁中與地區原名</th>
+                <th class="p-3.5 font-semibold min-w-[170px]">地區與詳細地址</th>
+                <th class="p-3.5 font-semibold min-w-[160px]">營業時間與公休</th>
+                <th class="p-3.5 font-semibold min-w-[190px]">室內／雨天備案</th>
+                <th class="p-3.5 font-semibold min-w-[160px]">距離與車程時間</th>
+                <th class="p-3.5 font-semibold whitespace-nowrap">預計步行量</th>
+                <th class="p-3.5 font-semibold min-w-[150px]">休息／用餐據點</th>
+                <th class="p-3.5 font-semibold min-w-[150px]">預約與採購狀態</th>
+                <th class="p-3.5 font-semibold whitespace-nowrap">官方連結</th>
+              </tr>
+            </thead>
+            <tbody id="comparison-tbody" class="divide-y divide-sand"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Shopping & Pending Tracker -->
+    <section id="tab-shopping" class="tab-panel hidden space-y-4">
+      <div class="editorial-card rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-sand">
+          <div>
+            <h2 class="font-serif text-base sm:text-lg font-bold text-hinoki">採購與待確認清單</h2>
+            <p class="text-xs text-stoneWarm mt-0.5">一鍵切換「待確認 / 待查 / 已預約 / 待購買 / 已購買 / 缺貨」，所有未確認價格、現貨與訂位皆預設標示「待確認」</p>
+          </div>
+          <button onclick="openShoppingModal()" class="px-3.5 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white text-xs sm:text-sm font-bold transition self-start sm:self-auto shadow-xs">
+            ＋ 新增採購／待確認項目
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-washi text-stoneWarm text-xs border-y border-sand">
+                <th class="p-3 font-semibold">日期／地區</th>
+                <th class="p-3 font-semibold">地區語言店舖名</th>
+                <th class="p-3 font-semibold">地區語言商品／待確認項目</th>
+                <th class="p-3 font-semibold">目前狀態（點擊切換）</th>
+                <th class="p-3 font-semibold">價格／費用紀錄</th>
+                <th class="p-3 font-semibold">備註與注意事項</th>
+                <th class="p-3 font-semibold text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="shopping-tbody" class="divide-y divide-sand"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Weather Backup, Rest & Taiwan Disaster Prevention Guide -->
+    <section id="tab-hub" class="tab-panel hidden space-y-5">
+      <div class="editorial-card rounded-2xl p-5">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3.5 pb-2.5 border-b border-sand">
+          <h2 class="font-serif text-base sm:text-lg font-bold text-hinoki flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded bg-hinokiLight text-hinoki font-mono text-xs font-bold">WEATHER &amp; RAIN BACKUP</span>
+            台北12月中旬濕冷雨天替代路線與氣候對策
+          </h2>
+          <a href="https://www.cwa.gov.tw/V8/C/W/County/County.html?CID=63" target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-terracotta hover:underline">
+            中央氣象署・臺北市預報 ↗
+          </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+          <div class="p-4 rounded-xl bg-washi/70 border border-sand">
+            <div class="font-bold text-ink mb-1.5">12月中旬氣溫與防雨裝備</div>
+            <p class="text-stoneWarm leading-relaxed">台北12月中旬受東北季風影響，氣溫約 <strong class="font-mono text-ink">15°C – 20°C</strong>，早晚偏涼且偶有細雨。建議洋蔥式穿搭（發熱衣＋針織衫＋防風防水外套），隨身攜帶摺疊傘與防滑步行鞋。</p>
+          </div>
+          <div class="p-4 rounded-xl bg-hinokiLight/50 border border-hinoki/20">
+            <div class="font-bold text-hinokiDark mb-1.5">Day 2 大稻埕／碼頭雨天替代路線</div>
+            <p class="text-ink/85 leading-relaxed">若遇雨勢，<strong>大稻埕碼頭貨櫃市集</strong>（戶外為主）改為全程走<strong>迪化街一段有頂歷史騎樓</strong>，並轉入全室內的<strong>永樂市場（1F布市／2F小吃）</strong>及迪化街老宅茶館品茶歇腳。</p>
+          </div>
+          <div class="p-4 rounded-xl bg-brassLight/70 border border-brass/30">
+            <div class="font-bold text-ink mb-1.5">Day 1 / Day 3 夜市雨天替代路線</div>
+            <p class="text-ink/85 leading-relaxed"><strong>寧夏夜市</strong>與<strong>饒河街觀光夜市</strong>為露天街道，遇大雨時：Day 1 改逛<strong>誠品生活南西（全室內）</strong>或台北地下街；Day 3 延長停留<strong>新光三越信義新天地（A4–A11 空橋連通）</strong>及<strong>台北101 B1美食街</strong>。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-5">
+        <h2 class="font-serif text-base sm:text-lg font-bold text-hinoki mb-3.5 pb-2.5 border-b border-sand flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded bg-brassLight text-brass font-mono text-xs font-bold">REST &amp; LOUNGE</span>
+          各商圈冷氣休息與洗手間據點指南
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs sm:text-sm">
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">萬華區／西門町（飯店基地）</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>台北東驛商務旅館</strong>（昆明街76號8樓，隨時回房放戰利品）；<strong>西門紅樓</strong>茶坊區、誠品生活西門店、家樂福桂林店（24H 室內美食街與洗手間）。</p>
+          </div>
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">大同區／大稻埕商圈</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>永樂市場</strong>（迪化街一段21號，冷氣休憩區與洗手間）、迪化街老宅咖啡館（爐鍋咖啡、森高砂咖啡）、大稻埕遊客中心。</p>
+          </div>
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">中山區／雙連商圈</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>誠品生活南西</strong>（中山站1號出口旁，多樓層咖啡館與洗手間）、心中山線形公園戶外休憩長椅。</p>
+          </div>
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">大安區／永康街</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>永康公園</strong>樹蔭座椅區、永康街周邊咖啡館與茶館（排隊購買甜滿牛軋餅後可就近歇腳）。</p>
+          </div>
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">信義區（新光三越／台北101）</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>新光三越 A9 8樓欣葉台菜</strong>、A8/A11 B2 美食街與各樓層沙發區；<strong>台北101 B1 美食廣場</strong>與 89 樓高空咖啡座。</p>
+          </div>
+          <div class="p-3.5 rounded-xl border border-sand bg-washi/50">
+            <div class="font-bold text-hinoki">松山區／饒河街夜市</div>
+            <p class="text-stoneWarm mt-1 leading-relaxed"><strong>CITYLINK 松山壹號店</strong>（捷運松山站共構商場，位於饒河夜市入口旁，提供室內空調座位與洗手間）。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-5 border-2 border-terracotta/40">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-sand">
+          <div>
+            <h2 class="font-serif text-base sm:text-lg font-bold text-terracottaDark flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded bg-terracotta text-white font-mono text-xs font-bold">EMERGENCY &amp; DISASTER</span>
+              台灣防災與緊急聯絡資料（點擊一鍵複製）
+            </h2>
+            <p class="text-xs text-stoneWarm mt-1">台灣位於地震帶，遇地震請保持冷靜「趴下、掩護、穩住」，並留意手機國家級警報（PWS）。</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a href="https://bear.emic.gov.tw/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-terracottaLight text-terracottaDark border border-terracotta/30 text-xs font-semibold hover:bg-terracotta/15">
+              消防防災e點通 ↗
+            </a>
+            <a href="https://www.cwa.gov.tw/V8/C/E/index.html" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-washi text-ink border border-sandDark text-xs font-semibold hover:bg-sand/50">
+              中央氣象署地震測報 ↗
+            </a>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs sm:text-sm">
+          <div class="p-3.5 rounded-xl bg-terracottaLight/60 border border-terracotta/30 flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-terracottaDark">報警／火警救護／無訊號救難</div>
+              <div class="text-ink mt-1 font-mono">警察局：<strong>110</strong>｜消防救護：<strong>119</strong><br>無訊號緊急救難：<strong>112</strong></div>
+            </div>
+            <button onclick="copyText('119')" class="px-2.5 py-1 bg-white border border-terracotta/40 rounded-lg text-xs font-semibold text-terracottaDark hover:bg-terracottaLight shrink-0">複製 119</button>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-washi/70 border border-sand flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-ink">交通部觀光署 24H 旅遊諮詢熱線</div>
+              <div class="text-stoneWarm mt-1">免付費專線：<strong class="font-mono text-ink">0800-011-765</strong>（支援粵語、國語、英語緊急協助）</div>
+            </div>
+            <button onclick="copyText('0800-011-765')" class="px-2.5 py-1 bg-white border border-sandDark rounded-lg text-xs font-semibold text-ink hover:bg-washi shrink-0">複製電話</button>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-washi/70 border border-sand flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-ink">香港入境處 24H 協助在外香港居民</div>
+              <div class="text-stoneWarm mt-1">求助熱線：<strong class="font-mono text-ink">+852 1868</strong>（證件遺失或海外緊急事故支援）</div>
+            </div>
+            <button onclick="copyText('+852 1868')" class="px-2.5 py-1 bg-white border border-sandDark rounded-lg text-xs font-semibold text-ink hover:bg-washi shrink-0">複製電話</button>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-washi/70 border border-sand flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-ink">下榻飯店中英文地址</div>
+              <div id="emergency-hotel-addr" class="text-ink mt-1 font-semibold">台北市萬華區昆明街76號8樓（Taipei East Dragon Hotel 台北東驛商務旅館）</div>
+            </div>
+            <button onclick="copyHotelAddress()" class="px-2.5 py-1 bg-white border border-sandDark rounded-lg text-xs font-semibold text-ink hover:bg-washi shrink-0">複製地址</button>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-washi/70 border border-sand flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-ink">鄰近大型急診醫療院所</div>
+              <div class="text-stoneWarm mt-1"><strong class="text-ink">臺大醫院急診部</strong><br>台北市中正區中山南路7號（距西門町約 8 分鐘車程）</div>
+            </div>
+            <button onclick="copyText('台北市中正區中山南路7號（臺大醫院急診）')" class="px-2.5 py-1 bg-white border border-sandDark rounded-lg text-xs font-semibold text-ink hover:bg-washi shrink-0">複製地址</button>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-washi/70 border border-sand flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold text-ink">台北市民當家熱線／捷運客服</div>
+              <div class="text-stoneWarm mt-1">台北市政與防災資訊：<strong class="font-mono text-ink">1999</strong><br>台北捷運 24 小時客服：<strong class="font-mono text-ink">02-218-12345</strong></div>
+            </div>
+            <button onclick="copyText('02-218-12345')" class="px-2.5 py-1 bg-white border border-sandDark rounded-lg text-xs font-semibold text-ink hover:bg-washi shrink-0">複製電話</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 0: GitHub Gist Cloud Sync Settings Modal -->
+  <div id="gist-modal" class="fixed inset-0 z-50 hidden bg-ink/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-paper rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border-2 border-hinoki my-8 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-sand pb-3 mb-4">
+        <div>
+          <span class="text-[11px] font-mono font-bold uppercase tracking-widest text-brass">GITHUB GIST CLOUD SYNC</span>
+          <h3 class="font-serif text-lg sm:text-xl font-bold text-hinoki">☁️ GitHub Gist 自動雲端同步 JSON 設定</h3>
+        </div>
+        <button onclick="closeGistModal()" class="text-stoneWarm hover:text-ink text-xl font-bold px-2">✕</button>
+      </div>
+
+      <!-- 3-Step Traditional Chinese Setup Tutorial -->
+      <div class="mb-4 p-3.5 rounded-xl bg-brassLight/70 border border-brass/35 text-xs text-ink space-y-1.5">
+        <div class="font-bold text-hinokiDark flex items-center gap-1.5">
+          <span>📖 三步驟快速設定跨裝置全自動同步：</span>
+        </div>
+        <ol class="list-decimal list-inside space-y-1 text-stoneWarm leading-relaxed">
+          <li>前往 <a href="https://github.com/settings/tokens/new?scopes=gist&description=Taipei+Travel+Console" target="_blank" rel="noopener noreferrer" class="text-terracotta font-bold underline">GitHub Personal Access Tokens (Classic) ↗</a>，登入後勾選 <code class="px-1.5 py-0.5 rounded bg-white border border-sand font-mono text-ink">gist</code> 權限並產生 Token（開頭通常為 <code class="font-mono">ghp_</code>）。</li>
+          <li>在下方貼上 Token，初次使用可將「Gist ID」留空，直接點擊 <strong class="text-hinoki">「✨ 自動建立全新私密 Gist 並綁定」</strong>。</li>
+          <li>綁定後系統會產生專屬 <strong class="text-ink">快速同步網址（含 <code class="font-mono">?gist=ID</code>）</strong>，在手機或另一部電腦打開該網址並填入 Token，即可每次開啟自動載入最新版、修改後 1.5 秒自動上傳！</li>
+        </ol>
+      </div>
+
+      <form onsubmit="saveGistSettings(event)" class="space-y-4 text-xs sm:text-sm">
+        <!-- Personal Access Token -->
+        <div>
+          <label class="block font-semibold text-ink mb-1">GitHub Personal Access Token（需具備 <code class="font-mono text-terracotta">gist</code> 權限）</label>
+          <div class="flex gap-2">
+            <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx（若僅唯讀拉取公開/已知 Gist 可留空）" class="flex-1 rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono text-xs sm:text-sm" />
+            <button type="button" onclick="toggleTokenVisibility()" id="btn-toggle-token" class="px-3 py-2 rounded-xl border border-sandDark bg-washi hover:bg-sand text-xs font-semibold text-ink shrink-0">
+              👁️ 顯示
+            </button>
+          </div>
+          <p class="text-[11px] text-stoneWarm mt-1">安全性說明：Token 僅儲存在您目前瀏覽器的 <code class="font-mono">localStorage</code> 中，不會傳送至任何第三方伺服器。</p>
+        </div>
+
+        <!-- Gist ID & Filename -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">Gist ID（初次使用可留空，一鍵自動建立）</label>
+            <input type="text" id="gist-id-input" placeholder="例如：a1b2c3d4e5f67890..." class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">雲端 JSON 備份檔名</label>
+            <input type="text" id="gist-filename-input" value="travel_console_sync.json" required class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <!-- One-Click Initialize Private Gist -->
+        <div class="p-3.5 rounded-xl bg-hinokiLight/70 border border-hinoki/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="text-xs">
+            <div class="font-bold text-hinokiDark">尚未建立過雲端 Gist？</div>
+            <div class="text-stoneWarm mt-0.5">貼上 Token 後點擊右側按鈕，自動建立 <code class="font-mono">private</code> 私密 Gist 並上傳目前所有旅程。</div>
+          </div>
+          <button type="button" onclick="createNewPrivateGist()" id="btn-create-gist" class="px-3.5 py-2.5 rounded-xl bg-hinoki hover:bg-hinokiDark text-white text-xs font-bold transition shadow-xs shrink-0">
+            ✨ 自動建立全新私密 Gist 並綁定
+          </button>
+        </div>
+
+        <!-- Automation Toggles (Default ON) -->
+        <div class="space-y-2.5 pt-1">
+          <label class="flex items-start gap-2.5 p-3 rounded-xl border border-sand bg-washi/40 cursor-pointer">
+            <input type="checkbox" id="gist-autopull-input" checked class="mt-0.5 w-4 h-4 accent-hinoki rounded" />
+            <div>
+              <div class="font-bold text-ink text-xs sm:text-sm">開啟網頁時自動從雲端 Gist 載入最新資料（Auto-Pull）</div>
+              <div class="text-xs text-stoneWarm">每次打開網頁若已設定 Gist ID（或網址帶有 <code class="font-mono">?gist=ID</code>），自動比對雲端更新時間並覆蓋載入最新版。</div>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-2.5 p-3 rounded-xl border border-sand bg-washi/40 cursor-pointer">
+            <input type="checkbox" id="gist-autopush-input" checked class="mt-0.5 w-4 h-4 accent-hinoki rounded" />
+            <div>
+              <div class="font-bold text-ink text-xs sm:text-sm">每次修改行程後自動上傳更新至雲端（Auto-Push）</div>
+              <div class="text-xs text-stoneWarm">任何新增、編輯、調序、切換採購狀態或新增/刪除旅程，於本機儲存後 <strong class="font-mono">1.5 秒</strong>自動防抖推送覆蓋雲端 JSON。</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Sync Status & Quick Share Link -->
+        <div class="p-3.5 rounded-xl bg-washi border border-sand space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-stoneWarm">目前同步狀態：</span>
+            <span id="modal-sync-detail" class="font-mono font-semibold text-hinoki">尚未綁定 Gist</span>
+          </div>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+            <input type="text" id="gist-share-url" readonly placeholder="綁定 Gist ID 後將自動生成帶 ?gist=ID 的跨裝置快速連結" class="flex-1 rounded-lg border border-sandDark bg-white px-2.5 py-1.5 font-mono text-[11px] text-stoneWarm" />
+            <button type="button" onclick="copyShareUrlWithGist()" class="px-3 py-1.5 rounded-lg bg-brass hover:bg-amber-500 text-hinokiDark font-bold text-xs shrink-0">
+              複製帶 Gist ID 的快速連結
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Pull / Push / Clear Controls -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-sand">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="pullFromGist(true)" class="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold transition">
+              ⬇️ 立即從雲端拉取覆蓋本機
+            </button>
+            <button type="button" onclick="pushToGist(true)" class="px-3 py-2 rounded-xl bg-terracotta hover:bg-terracottaDark text-white text-xs font-bold transition">
+              ⬆️ 立即強制推送至雲端
+            </button>
+            <button type="button" onclick="requestClearGistBinding()" class="px-3 py-2 rounded-xl border border-terracotta/40 bg-terracottaLight hover:bg-terracotta hover:text-white text-terracottaDark text-xs font-semibold transition">
+              清除雲端綁定
+            </button>
+          </div>
+
+          <div class="flex gap-2 ml-auto">
+            <button type="button" onclick="closeGistModal()" class="px-4 py-2 rounded-xl border border-sandDark text-stoneWarm hover:bg-washi font-medium">關閉</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white font-bold shadow-sm">儲存同步設定</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 1: Add / Edit Trip Modal -->
+  <div id="trip-modal" class="fixed inset-0 z-50 hidden bg-ink/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-paper rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-sand my-8">
+      <div class="flex items-center justify-between border-b border-sand pb-3 mb-4">
+        <h3 id="trip-modal-title" class="font-serif text-lg font-bold text-hinoki">新增旅程</h3>
+        <button onclick="closeTripModal()" class="text-stoneWarm hover:text-ink text-xl font-bold px-2">✕</button>
+      </div>
+      <form onsubmit="saveTrip(event)" class="space-y-4 text-xs sm:text-sm">
+        <input type="hidden" id="trip-edit-mode" value="create" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">旅程名稱 *</label>
+            <input type="text" id="trip-name" required placeholder="例如：2027 東京 5 天 4 夜櫻花行" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">目的地 *</label>
+            <input type="text" id="trip-destination" required placeholder="例如：日本東京／台灣台中" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">出發日期 *</label>
+            <input type="date" id="trip-start-date" required onchange="autoCalcTripDays()" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">回程日期 *</label>
+            <input type="date" id="trip-end-date" required onchange="autoCalcTripDays()" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">總天數（自動產生 Day 1–N）*</label>
+            <input type="number" id="trip-days-count" min="1" max="30" required value="4" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">住宿飯店名稱</label>
+            <input type="text" id="trip-hotel" placeholder="待確認" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">住宿飯店地址與入住退房時間</label>
+            <input type="text" id="trip-hotel-addr" placeholder="待確認" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">去程航班摘要</label>
+            <input type="text" id="trip-out-main" placeholder="例如：HKG 12:10 ➔ TPE 13:55" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">回程航班摘要</label>
+            <input type="text" id="trip-in-main" placeholder="例如：TPE 21:15 ➔ HKG 23:25" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">訂單編號（PNR）</label>
+            <input type="text" id="trip-pnr" placeholder="待確認" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2 font-mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">去程航班備註（航空公司／航廈）</label>
+            <input type="text" id="trip-out-sub" placeholder="待確認" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">回程航班備註（航空公司／航廈）</label>
+            <input type="text" id="trip-in-sub" placeholder="待確認" class="w-full rounded-xl border border-sandDark bg-washi/40 px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-sand">
+          <button type="button" onclick="closeTripModal()" class="px-4 py-2 rounded-xl border border-sandDark text-stoneWarm hover:bg-washi font-medium">取消</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white font-semibold shadow-sm">儲存旅程</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Comprehensive Add / Edit Itinerary Item Modal -->
+  <div id="item-modal" class="fixed inset-0 z-50 hidden bg-ink/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-paper rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-sand my-8 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-sand pb-3 mb-4">
+        <h3 id="modal-title" class="font-serif text-lg font-bold text-hinoki">編輯行程項目</h3>
+        <button onclick="closeItemModal()" class="text-stoneWarm hover:text-ink text-xl font-bold px-2">✕</button>
+      </div>
+      <form id="item-form" onsubmit="saveItineraryItem(event)" class="space-y-4 text-xs sm:text-sm">
+        <input type="hidden" id="edit-id" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">所屬日期 *</label>
+            <select id="edit-day" required class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white"></select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">開始時間 *</label>
+            <input type="time" id="edit-start" required class="w-full rounded-xl border border-sandDark px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">結束時間 *</label>
+            <input type="time" id="edit-end" required class="w-full rounded-xl border border-sandDark px-3 py-2 font-mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">景點／店舖繁體中文名稱 *</label>
+            <input type="text" id="edit-title" required placeholder="例如：甜滿牛軋餅" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">地區語言原名（保留店舖／商品原名）</label>
+            <input type="text" id="edit-local-name" placeholder="例如：L'Atelier Lotus 甜滿（香蔥牛軋餅）" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">所在地區（可選取或直接輸入）*</label>
+            <input type="text" id="edit-district" list="district-suggestions" required placeholder="例如：萬華區／西門町" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+            <datalist id="district-suggestions">
+              <option value="桃園機場"></option>
+              <option value="萬華區／西門町"></option>
+              <option value="大同區／大稻埕"></option>
+              <option value="中山區"></option>
+              <option value="大安區／永康街"></option>
+              <option value="信義區"></option>
+              <option value="松山區"></option>
+            </datalist>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">活動類型 *</label>
+            <select id="edit-category" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="美食餐飲">美食餐飲</option>
+              <option value="景點漫步">景點漫步</option>
+              <option value="購物採買">購物採買</option>
+              <option value="夜市小吃">夜市小吃</option>
+              <option value="交通接駁">交通接駁</option>
+              <option value="住宿休息">住宿休息</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">詳細地址（未確認可留空或填「待確認」）</label>
+            <input type="text" id="edit-address" placeholder="待確認" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">營業時間與公休日（未確認可留空或填「待確認」）</label>
+            <input type="text" id="edit-hours" placeholder="例如：04:30–11:00（週二公休）" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">交通方式</label>
+            <select id="edit-transit-mode" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="捷運">捷運</option>
+              <option value="機場捷運＋捷運">機場捷運＋捷運</option>
+              <option value="捷運＋公車">捷運＋公車</option>
+              <option value="公車">公車</option>
+              <option value="步行">步行</option>
+              <option value="計程車／Uber">計程車／Uber</option>
+              <option value="同館／無需移動">同館／無需移動</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">上一站至此車程（分鐘）</label>
+            <input type="number" id="edit-transit-mins" min="0" value="0" class="w-full rounded-xl border border-sandDark px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">預計步行距離（km）</label>
+            <input type="number" id="edit-walk-km" min="0" step="0.1" value="0.5" class="w-full rounded-xl border border-sandDark px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">步行負擔等級</label>
+            <select id="edit-walk-burden" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="輕鬆">輕鬆</option>
+              <option value="適中">適中</option>
+              <option value="偏高">偏高</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-ink mb-1">建議乘車路線說明</label>
+          <input type="text" id="edit-transit-desc" placeholder="例如：西門站搭捷運板南線至台北車站轉桃園機場捷運直達車" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">天氣備案屬性</label>
+            <select id="edit-weather" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="全室內">全室內</option>
+              <option value="有雨天備案">有雨天備案</option>
+              <option value="戶外為主">戶外為主</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">室內雨天備案說明</label>
+            <input type="text" id="edit-rain-backup" placeholder="例如：改走迪化街有頂騎樓與永樂市場" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">預約／訂位狀態</label>
+            <select id="edit-booking-status" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="預約待確認">預約待確認</option>
+              <option value="免預約">免預約</option>
+              <option value="已預約">已預約</option>
+              <option value="待查">待查</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">採購／門票狀態</label>
+            <select id="edit-purchase-status" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="免預約">無需採購／免票</option>
+              <option value="待購買">待購買</option>
+              <option value="待查">待查</option>
+              <option value="已購買">已購買</option>
+              <option value="缺貨">缺貨</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">距飯店／前站距離</label>
+            <input type="text" id="edit-distance-hotel" placeholder="例如：距飯店約 2.5 km（捷運 25 分）" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">休息／用餐據點建議</label>
+            <input type="text" id="edit-rest-spot" placeholder="例如：永樂市場2樓休憩區" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">官方資料／地圖連結 URL</label>
+            <input type="url" id="edit-link" placeholder="https://..." class="w-full rounded-xl border border-sandDark px-3 py-2 font-mono" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-ink mb-1">行程內容、點餐與待確認備註（不預設立場，未確認請標示「待確認」）</label>
+          <textarea id="edit-notes" rows="2" placeholder="待確認" class="w-full rounded-xl border border-sandDark px-3 py-2"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-sand">
+          <button type="button" onclick="closeItemModal()" class="px-4 py-2 rounded-xl border border-sandDark text-stoneWarm hover:bg-washi font-medium">取消</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white font-semibold shadow-sm">儲存行程變更</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Add / Edit Shopping & Pending Item -->
+  <div id="shopping-modal" class="fixed inset-0 z-50 hidden bg-ink/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-paper rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-sand">
+      <div class="flex items-center justify-between border-b border-sand pb-3 mb-4">
+        <h3 id="shop-modal-title" class="font-serif text-lg font-bold text-hinoki">新增採購／待確認項目</h3>
+        <button onclick="closeShoppingModal()" class="text-stoneWarm hover:text-ink text-xl font-bold px-2">✕</button>
+      </div>
+      <form onsubmit="saveShoppingItem(event)" class="space-y-3 text-xs sm:text-sm">
+        <input type="hidden" id="shop-id" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">預計日期</label>
+            <select id="shop-day" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white"></select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">所在地區</label>
+            <input type="text" id="shop-district" list="district-suggestions" required placeholder="例如：大安區／永康街" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-ink mb-1">地區語言店舖名 *</label>
+          <input type="text" id="shop-store" required placeholder="例如：甜滿 L'Atelier Lotus" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+        </div>
+        <div>
+          <label class="block font-semibold text-ink mb-1">地區語言商品／待確認項目名稱 *</label>
+          <input type="text" id="shop-name" required placeholder="例如：香蔥牛軋餅（盒裝）" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-ink mb-1">狀態</label>
+            <select id="shop-status" class="w-full rounded-xl border border-sandDark px-3 py-2 bg-white">
+              <option value="待確認">待確認</option>
+              <option value="待查">待查</option>
+              <option value="已預約">已預約</option>
+              <option value="待購買">待購買</option>
+              <option value="已購買">已購買</option>
+              <option value="缺貨">缺貨</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">價格／費用紀錄</label>
+            <input type="text" id="shop-price" value="待確認" placeholder="待確認" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-ink mb-1">備註（限購規則／現貨狀態／訂位資訊）</label>
+          <input type="text" id="shop-note" placeholder="待確認" class="w-full rounded-xl border border-sandDark px-3 py-2" />
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-sand">
+          <button type="button" onclick="closeShoppingModal()" class="px-4 py-2 rounded-xl border border-sandDark text-stoneWarm hover:bg-washi font-medium">取消</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white font-semibold">儲存項目</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: High-Contrast Custom Delete / Reset Confirmation Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden bg-ink/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-paper rounded-2xl max-w-md w-full p-6 shadow-2xl border-2 border-terracotta">
+      <div class="flex items-start gap-3">
+        <div class="p-2.5 rounded-xl bg-terracottaLight text-terracotta shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </div>
+        <div class="flex-1">
+          <h3 id="confirm-modal-title" class="font-serif text-lg font-bold text-ink">確認刪除此項目？</h3>
+          <p id="confirm-modal-target" class="mt-2 px-3 py-2 rounded-xl bg-terracottaLight border border-terracotta/30 text-sm font-bold text-terracottaDark break-words"></p>
+          <p id="confirm-modal-desc" class="text-xs sm:text-sm text-stoneWarm mt-2.5">確定要刪除此項目嗎？刪除後將無法復原。</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2.5 mt-6 pt-4 border-t border-sand">
+        <button onclick="closeConfirmModal()" class="px-4 py-2 rounded-xl border border-sandDark bg-white text-ink hover:bg-washi text-sm font-semibold">取消</button>
+        <button id="confirm-modal-btn" onclick="executePendingConfirm()" class="px-4 py-2 rounded-xl bg-terracotta hover:bg-terracottaDark text-white text-sm font-bold shadow-sm">確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'editorial_taipei_travel_console_v4';
+    const GIST_CFG_KEY = 'editorial_taipei_gist_config_v1';
+    const WEEKDAYS_ZH = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
+    function createDefaultTaipeiTrip() {
+      return {
+        id: 'trip-taipei-2026',
+        name: '2026 台北 4 天 3 夜美食購物行（12/12–12/15）',
+        destination: '台灣台北',
+        startDate: '2026-12-12',
+        endDate: '2026-12-15',
+        daysCount: 4,
+        pnr: 'QGGF9B',
+        hotel: '台北東驛商務旅館 Taipei East Dragon Hotel',
+        hotelAddress: '台北市萬華區昆明街76號8樓（捷運西門站 6 號出口步行約 5–7 分鐘｜15:00 後入住、12:00 前退房）',
+        outMain: 'HKG 12:10 ➔ TPE 13:55',
+        outSub: 'HK Express UO112｜香港客運大樓 2 ➔ 桃園第一航廈',
+        inMain: 'TPE 21:15 ➔ HKG 23:25',
+        inSub: 'HK Express UO117｜桃園第一航廈 ➔ 香港客運大樓 1',
+        itinerary: [
+          // DAY 1 (2026-12-12 週六)
+          {
+            id: 'tp-d1-1',
+            day: 1,
+            start: '13:55',
+            end: '15:00',
+            title: '桃園國際機場第一航廈入境',
+            localName: 'Taiwan Taoyuan International Airport Terminal 1 (HK Express UO112)',
+            district: '桃園機場',
+            address: '桃園市大園區航站南路9號（第一航廈）',
+            hours: '24小時營運',
+            closedWeekdays: [],
+            category: '交通接駁',
+            transitMode: '航班抵達',
+            transitMinsFromPrev: 0,
+            transitDesc: '搭乘 HK Express UO112 抵達桃園國際機場第一航廈，辦理入境通關與領取托運行李',
+            walkKm: 0.6,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全程位於航廈室內，不受天候影響',
+            bookingStatus: '已預約',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '距飯店約 36 km（機捷轉板南線約 56 分鐘）',
+            restSpot: '桃園機場第一航廈入境大廳座椅區',
+            link: 'https://www.taoyuan-airport.com/',
+            notes: '機票訂單編號 QGGF9B；實際入境通關與領行李時間視現場人潮待確認。'
+          },
+          {
+            id: 'tp-d1-2',
+            day: 1,
+            start: '15:00',
+            end: '16:00',
+            title: '台北東驛商務旅館辦理入住',
+            localName: '台北東驛商務旅館 Taipei East Dragon Hotel',
+            district: '萬華區／西門町',
+            address: '台北市萬華區昆明街76號8樓',
+            hours: '24小時櫃檯（15:00後入住／12:00前退房）',
+            closedWeekdays: [],
+            category: '住宿休息',
+            transitMode: '機場捷運＋捷運',
+            transitMinsFromPrev: 0,
+            transitDesc: '桃園機場第一航廈搭「桃園機場捷運直達車」至台北車站，轉捷運板南線至西門站（6號出口步行約 5–7 分鐘，車程約 56 分鐘）',
+            walkKm: 0.5,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內飯店，西門站出口沿有頂騎樓步行可達',
+            bookingStatus: '預約待確認',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '住宿基地（0 km）',
+            restSpot: '飯店客房／8樓大廳休憩區',
+            link: 'https://maps.google.com/?q=台北市萬華區昆明街76號8樓',
+            notes: '訂房確認號碼與現場押金規定：待確認。'
+          },
+          {
+            id: 'tp-d1-3',
+            day: 1,
+            start: '17:30',
+            end: '19:30',
+            title: '人和園餐廳晚餐（經典雲南菜）',
+            localName: '人和園餐廳 Ren He Yuan Yunnan Restaurant（豇豆釀百花、雞油豌豆、大薄片）',
+            district: '中山區',
+            address: '台北市中山區中山北路二段112號2樓',
+            hours: '11:30–14:00、17:30–21:00',
+            closedWeekdays: [],
+            category: '美食餐飲',
+            transitMode: '捷運',
+            transitMinsFromPrev: 25,
+            transitDesc: '西門站搭捷運松山新店線至中山站，轉淡水信義線至雙連站（2號出口步行約 5 分鐘）',
+            walkKm: 0.5,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內餐廳，雨天用餐首選',
+            bookingStatus: '預約待確認',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '距飯店約 3.2 km（捷運約 25 分鐘）',
+            restSpot: '人和園餐廳 2 樓座席區',
+            link: 'https://maps.google.com/?q=台北市中山區中山北路二段112號2樓',
+            notes: '訂位狀態：預約待確認（尚未完成預約，建議提前致電或線上訂位 17:30 場次；菜色時價待確認）。'
+          },
+          {
+            id: 'tp-d1-4',
+            day: 1,
+            start: '19:50',
+            end: '21:30',
+            title: '寧夏夜市小吃巡禮',
+            localName: '寧夏夜市 Ningxia Night Market（圓環邊蚵仔煎、劉芋仔蛋黃芋餅、豆花莊）',
+            district: '大同區／大稻埕',
+            address: '台北市大同區寧夏路（民生西路至平陽街段）',
+            hours: '每日 17:00–01:00',
+            closedWeekdays: [],
+            category: '夜市小吃',
+            transitMode: '步行',
+            transitMinsFromPrev: 17,
+            transitDesc: '自人和園沿民生西路向西步行約 17 分鐘（1.2 公里）抵達；餐後步行至雙連站或中山站搭捷運回西門站（約 19 分鐘）',
+            walkKm: 1.5,
+            walkBurden: '適中',
+            weather: '戶外為主',
+            rainBackup: '若遇大雨，可改往中山站旁「誠品生活南西（全室內）」或「台北地下街」用餐逛街',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 2.1 km（捷運約 19 分鐘）',
+            restSpot: '豆花莊內用座位區／圓環邊蚵仔煎店內座位',
+            link: 'https://maps.google.com/?q=寧夏夜市',
+            notes: '各攤位當日排隊人潮、價格與營業狀況：待確認。'
+          },
+
+          // DAY 2 (2026-12-13 週日)
+          {
+            id: 'tp-d2-1',
+            day: 2,
+            start: '09:00',
+            end: '10:15',
+            title: '津津豆漿店手工蛋餅早餐',
+            localName: '津津豆漿店 Jin Jin Soy Milk（手工現炸韭菜蛋餅、冰豆漿）',
+            district: '大同區／大稻埕',
+            address: '台北市大同區延平北路四段5號',
+            hours: '04:30–11:00（週二公休）',
+            closedWeekdays: ['週二'],
+            category: '美食餐飲',
+            transitMode: '捷運＋公車',
+            transitMinsFromPrev: 29,
+            transitDesc: '西門站搭捷運松山新店線至北門站，轉乘公車（9、206、274 路）至延平北路四段周邊（車程約 29 分鐘；計程車約 12–15 分鐘）',
+            walkKm: 0.5,
+            walkBurden: '輕鬆',
+            weather: '有雨天備案',
+            rainBackup: '騎樓設有遮雨座位區；遇大雨建議自飯店直接搭計程車前往門口',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 3.4 km（大眾運輸約 29 分鐘）',
+            restSpot: '津津豆漿店騎樓內用桌椅',
+            link: 'https://maps.google.com/?q=台北市大同區延平北路四段5號',
+            notes: '每週二公休且 11:00 準時打烊，務必於 10:00 前抵達；當日蛋餅售完時間待確認。'
+          },
+          {
+            id: 'tp-d2-2',
+            day: 2,
+            start: '10:40',
+            end: '17:00',
+            title: '大稻埕／迪化街一段＆大稻埕碼頭貨櫃市集',
+            localName: '大稻埕 Dadaocheng・迪化街一段 Dihua Street・大稻埕碼頭貨櫃市集',
+            district: '大同區／大稻埕',
+            address: '台北市大同區迪化街一段周邊（至五號水門大稻埕碼頭）',
+            hours: '街區全天開放（店家約 10:00–19:00；貨櫃市集週六日 12:00–22:00）',
+            closedWeekdays: [],
+            category: '景點漫步',
+            transitMode: '公車',
+            transitMinsFromPrev: 21,
+            transitDesc: '沿延平北路往南搭乘公車（9、206、274 路）至南京西路口／迪化街一段周邊（車程約 21 分鐘）',
+            walkKm: 2.6,
+            walkBurden: '偏高',
+            weather: '有雨天備案',
+            rainBackup: '迪化街兩側皆有連貫歷史騎樓，遇雨可轉入全室內「永樂市場」及老宅茶館，略過露天碼頭貨櫃市集',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 1.6 km（公車或步行可達）',
+            restSpot: '永樂市場（迪化街一段21號）冷氣休憩區／迪化街老宅咖啡館／碼頭貨櫃市集二樓座位',
+            link: 'https://maps.google.com/?q=台北市大同區迪化街一段',
+            notes: '南北貨、果乾、高山茶葉與文創選物價格及選購清單：待確認。'
+          },
+          {
+            id: 'tp-d2-3',
+            day: 2,
+            start: '17:30',
+            end: '19:30',
+            title: '濱松屋鰻魚飯晚餐',
+            localName: '濱松屋 Hamamatsuya（現殺現烤鰻魚飯三吃 ひつまぶし）',
+            district: '中山區',
+            address: '台北市中山區林森北路119巷12號',
+            hours: '11:30–14:00、17:30–21:30',
+            closedWeekdays: [],
+            category: '美食餐飲',
+            transitMode: '捷運',
+            transitMinsFromPrev: 19,
+            transitDesc: '步行至捷運北門站搭松山新店線至中山站（2號出口步行約 6 分鐘），車程約 19 分鐘',
+            walkKm: 0.6,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內日式餐廳，不受降雨影響',
+            bookingStatus: '預約待確認',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '距飯店約 2.6 km（捷運約 18 分鐘）',
+            restSpot: '濱松屋店內座席區',
+            link: 'https://maps.google.com/?q=台北市中山區林森北路119巷12號',
+            notes: '訂位狀態：預約待確認（尚未預約，建議提前訂位 17:30 場次；活鰻餐點時價待確認）。'
+          },
+          {
+            id: 'tp-d2-4',
+            day: 2,
+            start: '20:00',
+            end: '22:00',
+            title: '西門町夜市商圈自由逛街消夜',
+            localName: '西門町徒步區 Ximending Night Market（阿宗麵線、豪大大雞排、幸福堂）',
+            district: '萬華區／西門町',
+            address: '台北市萬華區漢中街、武昌街二段、峨眉街周邊',
+            hours: '商圈店家約 11:00–23:00',
+            closedWeekdays: [],
+            category: '夜市小吃',
+            transitMode: '捷運',
+            transitMinsFromPrev: 18,
+            transitDesc: '步行至中山站搭捷運松山新店線直達西門站（車程約 18 分鐘）',
+            walkKm: 1.2,
+            walkBurden: '適中',
+            weather: '有雨天備案',
+            rainBackup: '可轉入誠品生活西門店、萬年商業大樓或唐吉訶德西門店（24H 室內賣場）',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店步行約 3–5 分鐘（0.3 km）',
+            restSpot: '台北東驛商務旅館／西門紅樓戶外廣場休憩區',
+            link: 'https://maps.google.com/?q=西門町徒步區',
+            notes: '彈性消夜與逛街時段，隨時可回飯店休息。'
+          },
+
+          // DAY 3 (2026-12-14 週一)
+          {
+            id: 'tp-d3-1',
+            day: 3,
+            start: '09:00',
+            end: '10:45',
+            title: '甜滿牛軋餅＆永康商圈早午餐散步',
+            localName: '甜滿 L\'Atelier Lotus（香蔥牛軋餅）・永康街 Yongkang Street',
+            district: '大安區／永康街',
+            address: '台北市大安區永康街31巷10號',
+            hours: '09:00–20:30（熱門商品常於中午至下午提前售罄）',
+            closedWeekdays: [],
+            category: '購物採買',
+            transitMode: '捷運',
+            transitMinsFromPrev: 30,
+            transitDesc: '西門站搭捷運松山新店線至中正紀念堂站，轉淡水信義線至東門站（5號出口步行約 3 分鐘），車程約 30 分鐘',
+            walkKm: 0.9,
+            walkBurden: '輕鬆',
+            weather: '戶外為主',
+            rainBackup: '購餅後可至永康街室內牛肉麵店或咖啡館躲雨；若買多盒可先搭捷運回西門站放回飯店',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 3.5 km（捷運約 30 分鐘）',
+            restSpot: '永康公園座椅區／永康街周邊咖啡館',
+            link: 'https://maps.google.com/?q=台北市大安區永康街31巷10號',
+            notes: '現貨狀態：待購買／待確認（常提前售罄，建議 09:00 開門前抵達排隊；當日每人限購盒數與單價待確認）。'
+          },
+          {
+            id: 'tp-d3-2',
+            day: 3,
+            start: '12:00',
+            end: '13:30',
+            title: '欣葉台菜 信義新天地A9店午餐',
+            localName: '欣葉台菜 Shin Yeh Taiwanese Cuisine A9（香煎豬肝、菜脯蛋、三杯雞）',
+            district: '信義區',
+            address: '台北市信義區松壽路9號8樓（新光三越 A9 館 8 樓）',
+            hours: '午餐 11:00–14:30、晚餐 17:00–21:30',
+            closedWeekdays: [],
+            category: '美食餐飲',
+            transitMode: '捷運',
+            transitMinsFromPrev: 24,
+            transitDesc: '東門站搭捷運淡水信義線直達台北101/世貿站或象山站，步行至新光三越 A9 館（車程約 24 分鐘）',
+            walkKm: 0.4,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內百貨餐廳，完全不受降雨影響',
+            bookingStatus: '預約待確認',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '距飯店約 6.8 km（捷運約 25 分鐘）',
+            restSpot: '欣葉台菜 A9 8樓寬敞座席區',
+            link: 'https://www.shinyeh.com.tw/',
+            notes: '訂位狀態：預約待確認（已選定為 Day 3 午餐，尚未完成線上預約，建議預訂 12:00 場次；餐後贈熱麻糬）。'
+          },
+          {
+            id: 'tp-d3-3',
+            day: 3,
+            start: '13:30',
+            end: '17:30',
+            title: '新光三越台北信義新天地（A9 / A8 / A4 / A11 館）逛街購物',
+            localName: '新光三越台北信義新天地 Shin Kong Mitsukoshi Xinyi Place (A9/A8/A4/A11)',
+            district: '信義區',
+            address: '台北市信義區松壽路11號（A11）／松壽路9號（A9）／松高路19號（A4）',
+            hours: '週日至週四 11:00–21:30；週五、週六 11:00–22:00',
+            closedWeekdays: [],
+            category: '購物採買',
+            transitMode: '同館／無需移動',
+            transitMinsFromPrev: 0,
+            transitDesc: 'A9 ➔ A8 ➔ A4 ➔ A11 各館二樓皆有遮雨空中連通道相連，全程步行逛街',
+            walkKm: 1.8,
+            walkBurden: '適中',
+            weather: '全室內',
+            rainBackup: '四館之間皆有有頂空橋連通，為信義區最佳雨天逛街動線',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 6.8 km',
+            restSpot: '新光三越各館樓層休憩沙發／A8、A11 B2 美食廣場咖啡座',
+            link: 'https://www.skm.com.tw/',
+            notes: '外籍旅客退稅櫃檯位置、當期刷卡優惠及專櫃商品現貨：待確認。'
+          },
+          {
+            id: 'tp-d3-4',
+            day: 3,
+            start: '17:40',
+            end: '19:45',
+            title: '台北101觀景台＆購物中心',
+            localName: '台北101 Taipei 101 Observatory (89F) & Shopping Center',
+            district: '信義區',
+            address: '台北市信義區信義路五段7號（購物中心入口：市府路45號）',
+            hours: '購物中心 11:00–21:30；觀景台 10:00–21:00',
+            closedWeekdays: [],
+            category: '景點漫步',
+            transitMode: '步行',
+            transitMinsFromPrev: 8,
+            transitDesc: '由新光三越 A11 沿信義商圈有頂空橋或平面步道步行約 8 分鐘（600 公尺）',
+            walkKm: 0.9,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內摩天大樓與購物中心；若雲霧過濃遮蔽高空視野，可改逛 B1–5F 購物中心',
+            bookingStatus: '預約待確認',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 6.6 km（捷運約 25 分鐘）',
+            restSpot: '台北101 89樓觀景台高空咖啡座／B1 美食街座位區',
+            link: 'https://www.taipei-101.com.tw/',
+            notes: '門票狀態：待購買（票價與預約場次尚未購買，建議視當日傍晚天氣能見度決定是否登頂）。'
+          },
+          {
+            id: 'tp-d3-5',
+            day: 3,
+            start: '20:05',
+            end: '22:00',
+            title: '饒河街觀光夜市晚餐小吃',
+            localName: '饒河街觀光夜市 Raohe Street Night Market（福州世祖胡椒餅、陳董藥燉排骨、東發號）',
+            district: '松山區',
+            address: '台北市松山區饒河街（松山慈祐宮旁）',
+            hours: '每日 17:00–23:00',
+            closedWeekdays: [],
+            category: '夜市小吃',
+            transitMode: '捷運＋公車',
+            transitMinsFromPrev: 17,
+            transitDesc: '由台北101轉乘公車或捷運（或計程車約 10 分鐘），大眾運輸約 17 分鐘；回程自捷運松山站搭松山新店線一車直達西門站（約 30 分鐘）',
+            walkKm: 1.3,
+            walkBurden: '適中',
+            weather: '戶外為主',
+            rainBackup: '遇大雨可改至夜市入口旁的「CITYLINK 松山壹號店」全室內商場餐廳用餐',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店約 8.5 km（捷運松山站直達西門站約 30 分鐘）',
+            restSpot: 'CITYLINK 松山壹號店（松山站共構商場）／東發號店內座位',
+            link: 'https://maps.google.com/?q=饒河街觀光夜市',
+            notes: '各攤位現場排隊情況與價格：待確認。'
+          },
+
+          // DAY 4 (2026-12-15 週二)
+          {
+            id: 'tp-d4-1',
+            day: 4,
+            start: '10:00',
+            end: '12:00',
+            title: '台北東驛商務旅館早餐、整理行李與退房',
+            localName: '台北東驛商務旅館 Taipei East Dragon Hotel（12:00前退房寄放行李）',
+            district: '萬華區／西門町',
+            address: '台北市萬華區昆明街76號8樓',
+            hours: '退房時間 12:00 前（可免費寄放行李至出發前）',
+            closedWeekdays: [],
+            category: '住宿休息',
+            transitMode: '同館／無需移動',
+            transitMinsFromPrev: 0,
+            transitDesc: '於飯店整理戰利品並辦理退房手續，行李寄放櫃檯後下樓逛街',
+            walkKm: 0.2,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內飯店整理行李',
+            bookingStatus: '免預約',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '住宿基地（0 km）',
+            restSpot: '飯店客房／8樓大廳',
+            link: 'https://maps.google.com/?q=台北市萬華區昆明街76號8樓',
+            notes: '退房後請妥善保管行李寄放領取憑證。'
+          },
+          {
+            id: 'tp-d4-2',
+            day: 4,
+            start: '12:00',
+            end: '17:30',
+            title: '西門町最後採買補貨（西門紅樓、唐吉訶德、家樂福桂林店）',
+            localName: '西門紅樓 The Red House・DON DON DONKI 西門店・家樂福桂林店 Carrefour',
+            district: '萬華區／西門町',
+            address: '台北市萬華區武昌街二段56號（唐吉訶德）／桂林路1號（家樂福）',
+            hours: '唐吉訶德 24H；家樂福桂林店 24H；西門紅樓 11:00–21:30',
+            closedWeekdays: [],
+            category: '購物採買',
+            transitMode: '步行',
+            transitMinsFromPrev: 0,
+            transitDesc: '全程於西門町步行區採買伴手禮，17:45 回飯店領取行李準備前往機場',
+            walkKm: 1.6,
+            walkBurden: '適中',
+            weather: '有雨天備案',
+            rainBackup: '家樂福桂林店與唐吉訶德皆為大型全室內賣場，雨天可安心採購與辦理退稅',
+            bookingStatus: '免預約',
+            purchaseStatus: '待購買',
+            distanceFromHotel: '距飯店步行約 3–8 分鐘（0.2–0.7 km）',
+            restSpot: '家樂福桂林店美食街座位區／飯店大廳領取行李處',
+            link: 'https://maps.google.com/?q=家樂福桂林店',
+            notes: '伴手禮補貨清單、商品現貨及單店滿新台幣 2,000 元退稅條件：待確認。'
+          },
+          {
+            id: 'tp-d4-3',
+            day: 4,
+            start: '17:45',
+            end: '18:45',
+            title: '前往桃園國際機場第一航廈（機捷直達車）',
+            localName: 'Taoyuan Airport MRT Express to Terminal 1',
+            district: '桃園機場',
+            address: '桃園市大園區航站南路9號（第一航廈）',
+            hours: '首末班車約 06:00–23:00',
+            closedWeekdays: [],
+            category: '交通接駁',
+            transitMode: '機場捷運＋捷運',
+            transitMinsFromPrev: 0,
+            transitDesc: '17:45 自飯店取行李步行至西門站，搭板南線至台北車站轉「桃園機場捷運直達車」至桃園機場第一航廈（總車程約 57 分鐘）',
+            walkKm: 0.6,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內捷運與航廈連通道',
+            bookingStatus: '免預約',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '距飯店約 36 km（總車程約 57 分鐘）',
+            restSpot: '機場捷運車廂／桃園機場第一航廈出境大廳',
+            link: 'https://www.tymetro.com.tw/',
+            notes: '航空公司建議至少提前 90 分鐘抵達機場辦理登機與退稅。'
+          },
+          {
+            id: 'tp-d4-4',
+            day: 4,
+            start: '19:00',
+            end: '21:15',
+            title: '辦理登機手續並搭乘 UO117 返港',
+            localName: 'HK Express UO117 (TPE Terminal 1 ➔ HKG Terminal 1)',
+            district: '桃園機場',
+            address: '桃園市大園區航站南路9號（第一航廈）',
+            hours: '登機櫃檯於 20:15 關閉，21:15 起飛，23:25 抵達香港機場客運大樓 1',
+            closedWeekdays: [],
+            category: '交通接駁',
+            transitMode: '同館／無需移動',
+            transitMinsFromPrev: 0,
+            transitDesc: '於桃園機場第一航廈辦理行李托運、退稅與出境安檢',
+            walkKm: 0.5,
+            walkBurden: '輕鬆',
+            weather: '全室內',
+            rainBackup: '全室內候機室',
+            bookingStatus: '已預約',
+            purchaseStatus: '免預約',
+            distanceFromHotel: '桃園國際機場第一航廈',
+            restSpot: '桃園機場第一航廈候機室／免稅店休憩區',
+            link: 'https://www.taoyuan-airport.com/',
+            notes: '預訂編號 QGGF9B｜登機門與托運櫃檯編號當日待確認。'
+          }
+        ],
+        shopping: [
+          { id: 'tp-s1', day: 3, district: '大安區／永康街', store: '甜滿 L\'Atelier Lotus', name: '香蔥牛軋餅（盒裝伴手禮）', status: '待購買', price: '待確認', note: '09:00 開門易排隊且常提前售罄，當日現貨與每人限購盒數待確認' },
+          { id: 'tp-s2', day: 1, district: '中山區', store: '人和園餐廳 Ren He Yuan', name: '晚餐訂位（豇豆釀百花、雞油豌豆、大薄片）', status: '待確認', price: '待確認', note: '尚未預約，建議提前訂 12/12（六）17:30 晚餐時段' },
+          { id: 'tp-s3', day: 2, district: '中山區', store: '濱松屋 Hamamatsuya', name: '晚餐訂位（現殺現烤鰻魚飯三吃）', status: '待確認', price: '待確認', note: '尚未預約，建議提前訂 12/13（日）17:30 晚餐時段' },
+          { id: 'tp-s4', day: 3, district: '信義區', store: '欣葉台菜 信義新天地A9店', name: '午餐訂位（12/14 週一 12:00 場次）', status: '待確認', price: '待確認', note: '已選定為 Day 3 午餐，尚未完成線上或電話預約' },
+          { id: 'tp-s5', day: 3, district: '信義區', store: '台北101觀景台 Taipei 101 Observatory', name: '89樓觀景台入場門票', status: '待購買', price: '待確認', note: '門票尚未購買，視 12/14 傍晚高空能見度決定現場或線上購票' },
+          { id: 'tp-s6', day: 2, district: '大同區／大稻埕', store: '迪化街一段百年老舖', name: '台灣高山茶葉／果乾／南北貨', status: '待查', price: '待確認', note: '現場比較試吃、包裝重量與價格後選購' },
+          { id: 'tp-s7', day: 4, district: '萬華區／西門町', store: '唐吉訶德西門店／家樂福桂林店', name: '台灣限定零食、泡麵、鳳梨酥最後補貨', status: '待購買', price: '待確認', note: '留意單店滿新台幣 2,000 元可辦理退稅之規定' }
+        ]
+      };
+    }
+
+    let appState = loadAppState();
+    let gistConfig = loadGistConfig();
+    let currentTab = 'timeline';
+    let draggedItemId = null;
+    let pendingConfirmAction = null;
+    let autoPushTimer = null;
+
+    function loadGistConfig() {
+      let cfg = {
+        token: '',
+        gistId: '',
+        filename: 'travel_console_sync.json',
+        autoPull: true,
+        autoPush: true,
+        lastSyncedAt: ''
+      };
+      try {
+        const raw = localStorage.getItem(GIST_CFG_KEY);
+        if (raw) {
+          cfg = Object.assign(cfg, JSON.parse(raw));
+        }
+      } catch (e) {
+        console.error('Failed to read Gist config:', e);
+      }
+
+      // Check URL parameter ?gist=GIST_ID for instant cross-device sharing
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const urlGist = params.get('gist');
+        if (urlGist && urlGist.trim()) {
+          cfg.gistId = urlGist.trim();
+          localStorage.setItem(GIST_CFG_KEY, JSON.stringify(cfg));
+        }
+      } catch (e) {}
+
+      return cfg;
+    }
+
+    function saveGistConfigToStorage() {
+      try {
+        localStorage.setItem(GIST_CFG_KEY, JSON.stringify(gistConfig));
+      } catch (e) {}
+      updateCloudStatusUI('idle');
+    }
+
+    function updateCloudStatusUI(state, customMsg = '') {
+      const dot = document.getElementById('cloud-status-dot');
+      const text = document.getElementById('cloud-status-text');
+      const modalDetail = document.getElementById('modal-sync-detail');
+      const shareUrlInput = document.getElementById('gist-share-url');
+
+      if (shareUrlInput) {
+        if (gistConfig.gistId) {
+          const baseUrl = window.location.href.split('?')[0].split('#')[0];
+          shareUrlInput.value = `${baseUrl}?gist=${encodeURIComponent(gistConfig.gistId)}`;
+        } else {
+          shareUrlInput.value = '';
+        }
+      }
+
+      if (!gistConfig.gistId) {
+        dot.className = 'w-2 h-2 rounded-full bg-stone-400';
+        text.textContent = '☁️ 雲端未綁定';
+        text.className = 'text-stone-300';
+        if (modalDetail) modalDetail.textContent = '尚未綁定 Gist ID';
+        return;
+      }
+
+      if (state === 'syncing') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-300 animate-ping';
+        text.textContent = customMsg || '☁️ 雲端同步中...';
+        text.className = 'text-amber-200 font-bold';
+        if (modalDetail) modalDetail.textContent = customMsg || '同步進行中...';
+      } else if (state === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-400';
+        text.textContent = customMsg || '☁️ 同步錯誤（點擊檢查）';
+        text.className = 'text-rose-200 font-bold';
+        if (modalDetail) modalDetail.textContent = customMsg || '同步發生錯誤，請檢查 Token 或網路連線';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-300';
+        const timeStr = gistConfig.lastSyncedAt || '已連線';
+        text.textContent = `☁️ 已同步 (${timeStr})`;
+        text.className = 'text-emerald-200';
+        if (modalDetail) modalDetail.textContent = `已綁定 Gist: ${gistConfig.gistId.slice(0, 8)}...（最後同步：${timeStr}）`;
+      }
+    }
+
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.trips) && parsed.trips.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to read localStorage:', e);
+      }
+      const defaultTrip = createDefaultTaipeiTrip();
+      return {
+        updatedAt: new Date().toISOString(),
+        activeTripId: defaultTrip.id,
+        trips: [defaultTrip]
+      };
+    }
+
+    function saveAppState(skipAutoPush = false) {
+      appState.updatedAt = new Date().toISOString();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        const indicator = document.getElementById('save-indicator');
+        indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-300 inline-block"></span> 本機已存（' + new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '）';
+      } catch (e) {
+        showToast('本機儲存空間不足，建議匯出 JSON 備份。', 'error');
+      }
+
+      // Debounced 1.5s Auto-Push to GitHub Gist
+      if (!skipAutoPush && gistConfig.autoPush && gistConfig.gistId && gistConfig.token) {
+        updateCloudStatusUI('syncing', '☁️ 準備自動上傳 (1.5s)...');
+        clearTimeout(autoPushTimer);
+        autoPushTimer = setTimeout(() => {
+          pushToGist(false);
+        }, 1500);
+      }
+    }
+
+    // GitHub Gist API: Create New Private Gist
+    async function createNewPrivateGist() {
+      const token = document.getElementById('gist-token-input').value.trim();
+      const filename = document.getElementById('gist-filename-input').value.trim() || 'travel_console_sync.json';
+
+      if (!token) {
+        showToast('請先輸入具備 gist 權限的 GitHub Personal Access Token！', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-create-gist');
+      btn.disabled = true;
+      btn.textContent = '建立中...';
+      updateCloudStatusUI('syncing', '☁️ 建立私密 Gist 中...');
+
+      try {
+        appState.updatedAt = new Date().toISOString();
+        const res = await fetch('https://api.github.com/gists', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            description: '台北4天3夜旅行控制台自動同步備份 (Taipei Travel Console Sync)',
+            public: false,
+            files: {
+              [filename]: {
+                content: JSON.stringify(appState, null, 2)
+              }
+            }
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const nowStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+        gistConfig.token = token;
+        gistConfig.gistId = data.id;
+        gistConfig.filename = filename;
+        gistConfig.autoPull = document.getElementById('gist-autopull-input').checked;
+        gistConfig.autoPush = document.getElementById('gist-autopush-input').checked;
+        gistConfig.lastSyncedAt = nowStr;
+
+        document.getElementById('gist-id-input').value = data.id;
+        saveGistConfigToStorage();
+        updateCloudStatusUI('synced');
+        showToast(`✨ 已成功建立私密 Gist 並完成首次上傳！（ID: ${data.id.slice(0, 8)}...）`);
+      } catch (err) {
+        updateCloudStatusUI('error', '☁️ 建立 Gist 失敗');
+        showToast(`建立私密 Gist 失敗：${err.message}（請確認 Token 是否勾選 gist 權限）`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ 自動建立全新私密 Gist 並綁定';
+      }
+    }
+
+    // GitHub Gist API: Push (PATCH) Local JSON to Cloud
+    async function pushToGist(isManual = false) {
+      if (!gistConfig.gistId || !gistConfig.token) {
+        if (isManual) showToast('請先在「雲端同步設定」填入 Token 與 Gist ID。', 'error');
+        return;
+      }
+
+      updateCloudStatusUI('syncing', '☁️ 正在上傳至雲端...');
+      try {
+        const filename = gistConfig.filename || 'travel_console_sync.json';
+        const res = await fetch(`https://api.github.com/gists/${encodeURIComponent(gistConfig.gistId)}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${gistConfig.token}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: {
+              [filename]: {
+                content: JSON.stringify(appState, null, 2)
+              }
+            }
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+
+        const nowStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        gistConfig.lastSyncedAt = nowStr;
+        saveGistConfigToStorage();
+        updateCloudStatusUI('synced');
+        if (isManual) {
+          showToast('⬆️ 已成功將最新行程推送至 GitHub Gist 雲端！');
+        }
+      } catch (err) {
+        updateCloudStatusUI('error', '☁️ 上傳失敗');
+        showToast(`雲端上傳失敗：${err.message}`, 'error');
+      }
+    }
+
+    // GitHub Gist API: Pull (GET) Latest JSON from Cloud
+    async function pullFromGist(isManual = false) {
+      if (!gistConfig.gistId) {
+        if (isManual) showToast('尚未設定 Gist ID，無法從雲端拉取。', 'error');
+        return;
+      }
+
+      updateCloudStatusUI('syncing', '☁️ 正在檢查雲端最新版...');
+      try {
+        const headers = { 'Accept': 'application/vnd.github+json' };
+        if (gistConfig.token) {
+          headers['Authorization'] = `Bearer ${gistConfig.token}`;
+        }
+
+        const res = await fetch(`https://api.github.com/gists/${encodeURIComponent(gistConfig.gistId)}?t=${Date.now()}`, {
+          method: 'GET',
+          headers
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const files = data.files || {};
+        const targetFile = files[gistConfig.filename] || Object.values(files).find(f => f && f.filename && f.filename.endsWith('.json'));
+
+        if (!targetFile || !targetFile.content) {
+          throw new Error('雲端 Gist 內找不到有效的 JSON 檔案內容');
+        }
+
+        const cloudState = JSON.parse(targetFile.content);
+        if (!cloudState || !Array.isArray(cloudState.trips) || cloudState.trips.length === 0) {
+          throw new Error('雲端 JSON 結構格式不符');
+        }
+
+        const cloudUpdated = cloudState.updatedAt ? new Date(cloudState.updatedAt).getTime() : 0;
+        const localUpdated = appState.updatedAt ? new Date(appState.updatedAt).getTime() : 0;
+        const nowStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+        if (isManual || cloudUpdated > localUpdated || localUpdated === 0) {
+          appState = cloudState;
+          saveAppState(true); // Save locally without triggering recursive Auto-Push
+          gistConfig.lastSyncedAt = nowStr;
+          saveGistConfigToStorage();
+          updateCloudStatusUI('synced');
+          resetFilters();
+          showToast('⬇️ 已自動從雲端載入最新行程！');
+        } else {
+          gistConfig.lastSyncedAt = nowStr;
+          saveGistConfigToStorage();
+          updateCloudStatusUI('synced');
+        }
+      } catch (err) {
+        updateCloudStatusUI('error', '☁️ 拉取失敗');
+        if (isManual) {
+          showToast(`從雲端拉取失敗：${err.message}`, 'error');
+        }
+      }
+    }
+
+    async function manualSyncNow() {
+      if (!gistConfig.gistId) {
+        openGistModal();
+        showToast('請先完成 GitHub Gist 綁定設定。', 'error');
+        return;
+      }
+      if (gistConfig.token) {
+        await pushToGist(true);
+      } else {
+        await pullFromGist(true);
+      }
+    }
+
+    // Gist Modal UI Controls
+    function openGistModal() {
+      document.getElementById('gist-token-input').value = gistConfig.token || '';
+      document.getElementById('gist-id-input').value = gistConfig.gistId || '';
+      document.getElementById('gist-filename-input').value = gistConfig.filename || 'travel_console_sync.json';
+      document.getElementById('gist-autopull-input').checked = gistConfig.autoPull !== false;
+      document.getElementById('gist-autopush-input').checked = gistConfig.autoPush !== false;
+      updateCloudStatusUI(gistConfig.gistId ? 'synced' : 'idle');
+      document.getElementById('gist-modal').classList.remove('hidden');
+    }
+
+    function closeGistModal() {
+      document.getElementById('gist-modal').classList.add('hidden');
+    }
+
+    function toggleTokenVisibility() {
+      const inp = document.getElementById('gist-token-input');
+      const btn = document.getElementById('btn-toggle-token');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        btn.textContent = '🙈 隱藏';
+      } else {
+        inp.type = 'password';
+        btn.textContent = '👁️ 顯示';
+      }
+    }
+
+    function saveGistSettings(e) {
+      e.preventDefault();
+      gistConfig.token = document.getElementById('gist-token-input').value.trim();
+      gistConfig.gistId = document.getElementById('gist-id-input').value.trim();
+      gistConfig.filename = document.getElementById('gist-filename-input').value.trim() || 'travel_console_sync.json';
+      gistConfig.autoPull = document.getElementById('gist-autopull-input').checked;
+      gistConfig.autoPush = document.getElementById('gist-autopush-input').checked;
+
+      saveGistConfigToStorage();
+      closeGistModal();
+      showToast('已儲存 GitHub Gist 雲端同步設定。');
+
+      if (gistConfig.gistId && gistConfig.autoPull) {
+        pullFromGist(true);
+      }
+    }
+
+    function copyShareUrlWithGist() {
+      const val = document.getElementById('gist-share-url').value;
+      if (!val) {
+        showToast('請先建立或輸入 Gist ID 後再複製快速連結。', 'error');
+        return;
+      }
+      copyText(val);
+    }
+
+    function requestClearGistBinding() {
+      openConfirmModal(
+        '確認清除雲端 Gist 綁定？',
+        gistConfig.gistId || '未綁定',
+        '清除後將停止與 GitHub Gist 的自動同步（本機與雲端已存的資料不會被刪除）。確定要清除嗎？',
+        () => {
+          gistConfig = {
+            token: '',
+            gistId: '',
+            filename: 'travel_console_sync.json',
+            autoPull: true,
+            autoPush: true,
+            lastSyncedAt: ''
+          };
+          saveGistConfigToStorage();
+          document.getElementById('gist-token-input').value = '';
+          document.getElementById('gist-id-input').value = '';
+          updateCloudStatusUI('idle');
+          showToast('已清除 GitHub Gist 雲端同步綁定。');
+        }
+      );
+    }
+
+    function getActiveTrip() {
+      let trip = appState.trips.find(t => t.id === appState.activeTripId);
+      if (!trip && appState.trips.length > 0) {
+        trip = appState.trips[0];
+        appState.activeTripId = trip.id;
+      }
+      return trip;
+    }
+
+    function getDayDateInfo(trip, dayNum) {
+      if (!trip.startDate) {
+        return { dateStr: `第 ${dayNum} 天`, shortDate: `DAY ${dayNum}`, weekday: '' };
+      }
+      const parts = trip.startDate.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2] + (dayNum - 1));
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const weekday = WEEKDAYS_ZH[d.getDay()];
+      return { dateStr: `${yyyy}-${mm}-${dd}`, shortDate: `${mm}/${dd}`, weekday };
+    }
+
+    function timeToMins(t) {
+      if (!t || !t.includes(':')) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function minsToTime(mins) {
+      const h = Math.floor(mins / 60) % 24;
+      const m = mins % 60;
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function sortTripItinerary(trip) {
+      trip.itinerary.sort((a, b) => {
+        if (a.day !== b.day) return a.day - b.day;
+        return timeToMins(a.start) - timeToMins(b.start);
+      });
+    }
+
+    function detectConflicts(trip) {
+      const conflicts = [];
+      const itemConflictMap = {};
+      const daysCount = Number(trip.daysCount) || 4;
+
+      for (let day = 1; day <= daysCount; day++) {
+        const { weekday } = getDayDateInfo(trip, day);
+        const dayItems = trip.itinerary.filter(i => Number(i.day) === day);
+
+        dayItems.forEach((item, idx) => {
+          const startM = timeToMins(item.start);
+          const endM = timeToMins(item.end);
+
+          if (endM <= startM) {
+            const msg = `Day ${day}「${item.title}」結束時間（${item.end}）早於或等於開始時間（${item.start}）。`;
+            conflicts.push(msg);
+            (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push('時間區間設定異常');
+          }
+
+          if (weekday && Array.isArray(item.closedWeekdays) && item.closedWeekdays.includes(weekday)) {
+            const msg = `Day ${day}（${weekday}）「${item.title}」適逢店家公休日（${item.hours}），請調動至其他日期！`;
+            conflicts.push(msg);
+            (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push(`公休日衝突（${weekday}公休）`);
+          } else if (weekday && item.hours && item.hours.includes(`${weekday}公休`)) {
+            const msg = `Day ${day}（${weekday}）「${item.title}」適逢店家公休日（${item.hours}），請調動至其他日期！`;
+            conflicts.push(msg);
+            (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push(`公休日衝突（${weekday}公休）`);
+          }
+
+          if (item.hours && item.hours.includes('14:00') && item.hours.includes('17:30')) {
+            if ((startM >= timeToMins('14:00') && startM < timeToMins('17:30')) || (endM > timeToMins('14:00') && endM <= timeToMins('17:30'))) {
+              const msg = `Day ${day}「${item.title}」時段（${item.start}–${item.end}）落入店家下午休息時段（14:00–17:30）。`;
+              conflicts.push(msg);
+              (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push('落入下午休息時段（14:00–17:30）');
+            }
+          } else if (item.hours && item.hours.includes('14:30') && item.hours.includes('17:00')) {
+            if ((startM >= timeToMins('14:30') && startM < timeToMins('17:00')) || (endM > timeToMins('14:30') && endM <= timeToMins('17:00'))) {
+              const msg = `Day ${day}「${item.title}」時段（${item.start}–${item.end}）落入店家下午休息時段（14:30–17:00）。`;
+              conflicts.push(msg);
+              (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push('落入下午休息時段（14:30–17:00）');
+            }
+          }
+
+          if (idx < dayItems.length - 1) {
+            const next = dayItems[idx + 1];
+            const nextStartM = timeToMins(next.start);
+            const transitToNext = Number(next.transitMinsFromPrev) || 0;
+
+            if (endM > nextStartM) {
+              const msg = `Day ${day}「${item.title}」（結束 ${item.end}）與下一站「${next.title}」（開始 ${next.start}）時間重疊！`;
+              conflicts.push(msg);
+              (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push(`與下一站時間重疊（${item.end} > ${next.start}）`);
+              (itemConflictMap[next.id] = itemConflictMap[next.id] || []).push('與上一站時間重疊');
+            } else if (endM + transitToNext > nextStartM) {
+              const arrivalTime = minsToTime(endM + transitToNext);
+              const msg = `Day ${day} 交通緊迫：「${item.title}」（${item.end} 結束）＋前往「${next.title}」車程 ${transitToNext} 分鐘後約 ${arrivalTime} 抵達，晚於預定開始時間（${next.start}）。`;
+              conflicts.push(msg);
+              (itemConflictMap[item.id] = itemConflictMap[item.id] || []).push(`下一程車程不足（預計 ${arrivalTime} 才抵達）`);
+              (itemConflictMap[next.id] = itemConflictMap[next.id] || []).push(`車程預估 ${arrivalTime} 抵達，可能遲到`);
+            }
+          }
+        });
+      }
+
+      return { conflicts, itemConflictMap };
+    }
+
+    function populateHeaderAndSelectors(trip) {
+      const switcher = document.getElementById('trip-switcher');
+      switcher.innerHTML = appState.trips.map(t =>
+        `<option value="${escapeHtml(t.id)}" ${t.id === trip.id ? 'selected' : ''} class="text-ink bg-white">${escapeHtml(t.name)}</option>`
+      ).join('');
+
+      const outInfo = getDayDateInfo(trip, 1);
+      const inInfo = getDayDateInfo(trip, trip.daysCount);
+
+      document.getElementById('ticket-trip-dates').textContent = `${trip.destination}｜${trip.startDate || '待確認'} — ${trip.endDate || '待確認'}（${trip.daysCount} DAYS）`;
+      document.getElementById('ticket-pnr').textContent = `PNR / 訂單：${trip.pnr || '待確認'}`;
+      document.getElementById('ticket-out-date').textContent = trip.startDate ? `${outInfo.shortDate}（${outInfo.weekday}）` : '待確認';
+      document.getElementById('ticket-out-main').textContent = trip.outMain || '待確認';
+      document.getElementById('ticket-out-sub').textContent = trip.outSub || '待確認';
+      document.getElementById('ticket-in-date').textContent = trip.endDate ? `${inInfo.shortDate}（${inInfo.weekday}）` : '待確認';
+      document.getElementById('ticket-in-main').textContent = trip.inMain || '待確認';
+      document.getElementById('ticket-in-sub').textContent = trip.inSub || '待確認';
+      document.getElementById('ticket-hotel-name').textContent = trip.hotel || '待確認';
+      document.getElementById('ticket-hotel-addr').textContent = trip.hotelAddress || '待確認';
+
+      const emergencyHotel = document.getElementById('emergency-hotel-addr');
+      if (emergencyHotel) {
+        emergencyHotel.textContent = `${trip.hotelAddress || '待確認'}（${trip.hotel || '住宿飯店'}）`;
+      }
+
+      const filterDay = document.getElementById('filter-day');
+      const prevDayVal = filterDay.value;
+      let dayOpts = `<option value="ALL">全部日期（Day 1 – Day ${trip.daysCount}）</option>`;
+      for (let d = 1; d <= trip.daysCount; d++) {
+        const info = getDayDateInfo(trip, d);
+        dayOpts += `<option value="${d}">Day ${d}｜${info.dateStr}（${info.weekday}）</option>`;
+      }
+      filterDay.innerHTML = dayOpts;
+      filterDay.value = (prevDayVal === 'ALL' || (Number(prevDayVal) >= 1 && Number(prevDayVal) <= trip.daysCount)) ? prevDayVal : 'ALL';
+
+      const filterDist = document.getElementById('filter-district');
+      const prevDistVal = filterDist.value;
+      const districts = new Set(trip.itinerary.map(i => i.district).filter(Boolean));
+      let distOpts = '<option value="ALL">全部地區</option>';
+      districts.forEach(dist => {
+        distOpts += `<option value="${escapeHtml(dist)}">${escapeHtml(dist)}</option>`;
+      });
+      filterDist.innerHTML = distOpts;
+      filterDist.value = districts.has(prevDistVal) ? prevDistVal : 'ALL';
+    }
+
+    function getFilterValues() {
+      return {
+        day: document.getElementById('filter-day').value,
+        district: document.getElementById('filter-district').value,
+        category: document.getElementById('filter-category').value,
+        weather: document.getElementById('filter-weather').value,
+        status: document.getElementById('filter-status').value,
+        keyword: document.getElementById('filter-keyword').value.trim().toLowerCase()
+      };
+    }
+
+    function filterItinerary(list) {
+      const f = getFilterValues();
+      return list.filter(item => {
+        if (f.day !== 'ALL' && String(item.day) !== String(f.day)) return false;
+        if (f.district !== 'ALL' && item.district !== f.district) return false;
+        if (f.category !== 'ALL' && item.category !== f.category) return false;
+        if (f.weather !== 'ALL' && item.weather !== f.weather) return false;
+        if (f.status !== 'ALL' && item.bookingStatus !== f.status && item.purchaseStatus !== f.status) return false;
+        if (f.keyword) {
+          const hay = `${item.title} ${item.localName || ''} ${item.district} ${item.address || ''} ${item.notes || ''}`.toLowerCase();
+          if (!hay.includes(f.keyword)) return false;
+        }
+        return true;
+      });
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-day').value = 'ALL';
+      document.getElementById('filter-district').value = 'ALL';
+      document.getElementById('filter-category').value = 'ALL';
+      document.getElementById('filter-weather').value = 'ALL';
+      document.getElementById('filter-status').value = 'ALL';
+      document.getElementById('filter-keyword').value = '';
+      applyFilters();
+    }
+
+    function applyFilters() {
+      renderAll();
+    }
+
+    function getBurdenBadgeClass(burden) {
+      if (burden === '輕鬆') return 'bg-hinokiLight text-hinoki border border-hinoki/20';
+      if (burden === '適中') return 'bg-brassLight text-brass border border-brass/30';
+      return 'bg-terracottaLight text-terracottaDark border border-terracotta/30';
+    }
+
+    function getStatusBadgeClass(status) {
+      switch (status) {
+        case '已購買':
+        case '已預約':
+          return 'bg-hinokiLight text-hinoki border-hinoki/30';
+        case '待購買':
+        case '待查':
+          return 'bg-brassLight text-brass border-brass/40';
+        case '預約待確認':
+        case '待確認':
+          return 'bg-terracottaLight text-terracottaDark border-terracotta/40';
+        case '缺貨':
+          return 'bg-rose-100 text-rose-800 border-rose-300';
+        default:
+          return 'bg-washi text-stoneWarm border-sandDark';
+      }
+    }
+
+    function getWeatherBadgeClass(weather) {
+      if (weather === '全室內') return 'bg-sky-50 text-sky-800 border border-sky-200';
+      if (weather === '有雨天備案') return 'bg-indigo-50 text-indigo-800 border border-indigo-200';
+      return 'bg-amber-50 text-amber-900 border border-amber-200';
+    }
+
+    function updateKPIs(trip, filteredItems, allConflicts) {
+      const totalWalkKm = filteredItems.reduce((sum, i) => sum + (Number(i.walkKm) || 0), 0);
+      const totalTransit = filteredItems.reduce((sum, i) => sum + (Number(i.transitMinsFromPrev) || 0), 0);
+      const pendingItems = filteredItems.filter(i =>
+        ['預約待確認', '待購買', '待查', '缺貨'].includes(i.bookingStatus) ||
+        ['預約待確認', '待購買', '待查', '缺貨'].includes(i.purchaseStatus)
+      ).length;
+
+      document.getElementById('kpi-walk-km').textContent = `${totalWalkKm.toFixed(1)} km`;
+      const fDay = document.getElementById('filter-day').value;
+      const walkBadge = document.getElementById('kpi-walk-badge');
+
+      if (fDay === 'ALL') {
+        const avgDaily = totalWalkKm / (Number(trip.daysCount) || 1);
+        walkBadge.textContent = `日均 ${avgDaily.toFixed(1)} km`;
+        walkBadge.className = 'px-2 py-0.5 text-xs font-mono font-semibold rounded-md bg-washi text-stoneWarm border border-sand';
+        document.getElementById('kpi-walk-sub').textContent = `全旅程（${trip.daysCount} 天）累計步行距離`;
+      } else {
+        const b = totalWalkKm < 2.5 ? { label: '輕鬆負擔', cls: 'bg-hinokiLight text-hinoki' }
+          : totalWalkKm <= 4.5 ? { label: '適中負擔', cls: 'bg-brassLight text-brass' }
+          : { label: '偏高・留意休息', cls: 'bg-terracottaLight text-terracottaDark' };
+        walkBadge.textContent = b.label;
+        walkBadge.className = `px-2 py-0.5 text-xs font-semibold rounded-md ${b.cls}`;
+        document.getElementById('kpi-walk-sub').textContent = `Day ${fDay} 單日預計步行總量`;
+      }
+
+      document.getElementById('kpi-transit-mins').textContent = `${totalTransit} 分鐘`;
+      document.getElementById('kpi-pending-count').textContent = `${pendingItems} 項`;
+
+      const sDone = trip.shopping.filter(s => ['已購買', '已預約'].includes(s.status)).length;
+      const sToBuy = trip.shopping.filter(s => s.status === '待購買').length;
+      const sCheck = trip.shopping.filter(s => ['待確認', '待查'].includes(s.status)).length;
+      const sOut = trip.shopping.filter(s => s.status === '缺貨').length;
+
+      document.getElementById('kpi-shopping-stats').innerHTML = `
+        <span class="px-2 py-0.5 rounded bg-hinokiLight text-hinoki">已買/訂 ${sDone}</span>
+        <span class="px-2 py-0.5 rounded bg-brassLight text-brass">待購買 ${sToBuy}</span>
+        <span class="px-2 py-0.5 rounded bg-terracottaLight text-terracottaDark">待確認/查 ${sCheck}</span>
+        <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800">缺貨 ${sOut}</span>
+      `;
+
+      const banner = document.getElementById('conflict-banner');
+      const clearBanner = document.getElementById('all-clear-banner');
+      if (allConflicts.length > 0) {
+        banner.classList.remove('hidden');
+        clearBanner.classList.add('hidden');
+        document.getElementById('conflict-count').textContent = allConflicts.length;
+        document.getElementById('conflict-list').innerHTML = allConflicts.map(c => `<li>${escapeHtml(c)}</li>`).join('');
+      } else {
+        banner.classList.add('hidden');
+        clearBanner.classList.remove('hidden');
+      }
+    }
+
+    function renderTimeline(trip, filteredItems, itemConflictMap) {
+      const container = document.getElementById('timeline-container');
+      const fDay = document.getElementById('filter-day').value;
+      const daysCount = Number(trip.daysCount) || 4;
+      const daysToRender = fDay === 'ALL' ? Array.from({ length: daysCount }, (_, i) => i + 1) : [Number(fDay)];
+
+      let html = '';
+      daysToRender.forEach(dayNum => {
+        const info = getDayDateInfo(trip, dayNum);
+        const dayFiltered = filteredItems.filter(i => Number(i.day) === dayNum);
+        const dayAll = trip.itinerary.filter(i => Number(i.day) === dayNum);
+        const dayWalkKm = dayFiltered.reduce((s, i) => s + (Number(i.walkKm) || 0), 0);
+        const dayTransit = dayFiltered.reduce((s, i) => s + (Number(i.transitMinsFromPrev) || 0), 0);
+
+        let moveDayOptions = '';
+        for (let d = 1; d <= daysCount; d++) {
+          moveDayOptions += `<option value="${d}" ${d === dayNum ? 'selected' : ''}>Day ${d}</option>`;
+        }
+
+        html += `
+          <div class="editorial-card rounded-2xl overflow-hidden">
+            <div class="bg-washi border-b border-sand px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="px-3 py-1 rounded-lg bg-hinoki text-white font-mono text-xs font-bold tracking-wider">CHAPTER 0${dayNum}</span>
+                <h2 class="font-serif text-lg sm:text-xl font-bold text-ink">
+                  Day ${dayNum}｜${info.dateStr}（${info.weekday}）
+                </h2>
+                <button onclick="openItemModal(null, ${dayNum})" class="px-2.5 py-1 rounded-lg bg-white hover:bg-hinokiLight text-hinoki border border-hinoki/30 text-xs font-semibold transition">
+                  ＋ 新增 Day ${dayNum} 行程
+                </button>
+              </div>
+              <div class="flex items-center gap-3 text-xs font-mono text-stoneWarm">
+                <span>WALK: <strong class="text-ink">${dayWalkKm.toFixed(1)} km</strong></span>
+                <span class="text-sandDark">|</span>
+                <span>TRANSIT: <strong class="text-hinoki">${dayTransit} min</strong></span>
+              </div>
+            </div>
+
+            <div class="p-4 sm:p-6 timeline-spine space-y-5">
+        `;
+
+        if (dayFiltered.length === 0) {
+          html += `<div class="text-center py-8 text-sm text-stoneWarm">此日期在目前篩選條件下無符合之行程項目。</div>`;
+        } else {
+          dayFiltered.forEach(item => {
+            const posInDay = dayAll.findIndex(x => x.id === item.id);
+            const isFirst = posInDay === 0;
+            const isLast = posInDay === dayAll.length - 1;
+            const itemConflicts = itemConflictMap[item.id] || [];
+            const hasConflict = itemConflicts.length > 0;
+
+            html += `
+              <div draggable="true"
+                   ondragstart="handleDragStart(event, '${item.id}')"
+                   ondragover="handleDragOver(event)"
+                   ondragleave="handleDragLeave(event)"
+                   ondrop="handleDrop(event, '${item.id}')"
+                   class="relative flex flex-col md:flex-row gap-3 md:gap-6 items-stretch">
+
+                <div class="md:w-28 shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-start pt-1 text-right">
+                  <div>
+                    <div class="font-mono text-sm sm:text-base font-bold text-hinoki">${escapeHtml(item.start)}</div>
+                    <div class="font-mono text-xs text-stoneWarm">to ${escapeHtml(item.end)}</div>
+                  </div>
+                  <span class="md:mt-2 px-2 py-0.5 rounded bg-washi border border-sand text-[11px] font-medium text-stoneWarm">
+                    ${escapeHtml(item.district)}
+                  </span>
+                </div>
+
+                <div class="hidden md:flex flex-col items-center pt-2 z-10">
+                  <div class="w-4 h-4 rounded-full border-4 border-paper ${hasConflict ? 'bg-terracotta ring-2 ring-terracotta' : 'bg-hinoki ring-2 ring-hinoki/40'}"></div>
+                </div>
+
+                <div class="flex-1 rounded-2xl border ${hasConflict ? 'border-terracotta bg-terracottaLight/30' : 'border-sand bg-paper'} p-4 sm:p-5 transition hover:border-hinoki/50 shadow-2xs">
+
+                  ${hasConflict ? `
+                    <div class="mb-3 px-3 py-2 rounded-xl bg-terracotta text-white text-xs font-semibold flex items-center gap-2">
+                      <span>⚠️ 調度衝突警示：</span>
+                      <span>${escapeHtml(itemConflicts.join(' ｜ '))}</span>
+                    </div>
+                  ` : ''}
+
+                  ${(item.transitMinsFromPrev > 0 || item.transitDesc) ? `
+                    <div class="mb-3.5 px-3.5 py-2 rounded-xl bg-washi border border-sand flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+                      <div class="flex items-start sm:items-center gap-2 text-ink">
+                        <span class="px-2 py-0.5 rounded-md bg-hinoki text-white font-semibold shrink-0">${escapeHtml(item.transitMode || '交通接駁')}</span>
+                        <span class="leading-relaxed">${escapeHtml(item.transitDesc || '—')}</span>
+                      </div>
+                      <div class="flex items-center gap-2 font-mono shrink-0">
+                        ${item.transitMinsFromPrev > 0 ? `<span class="px-2 py-0.5 rounded bg-white border border-sandDark text-terracotta font-bold">車程 ${item.transitMinsFromPrev} 分</span>` : ''}
+                        <span class="px-2 py-0.5 rounded bg-white border border-sandDark text-hinoki font-semibold">步行 ${Number(item.walkKm || 0).toFixed(1)} km</span>
+                      </div>
+                    </div>
+                  ` : ''}
+
+                  <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+                    <div class="flex-1 space-y-2">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="px-2 py-0.5 rounded-md bg-brassLight text-brass border border-brass/30 text-xs font-semibold">${escapeHtml(item.category)}</span>
+                        <span class="px-2 py-0.5 rounded-md text-xs font-medium ${getWeatherBadgeClass(item.weather)}">${escapeHtml(item.weather)}</span>
+                        <span class="px-2 py-0.5 rounded-md border text-xs font-semibold ${getStatusBadgeClass(item.bookingStatus)}">預約：${escapeHtml(item.bookingStatus)}</span>
+                        ${item.purchaseStatus !== '免預約' ? `<span class="px-2 py-0.5 rounded-md border text-xs font-semibold ${getStatusBadgeClass(item.purchaseStatus)}">採購/門票：${escapeHtml(item.purchaseStatus)}</span>` : ''}
+                      </div>
+
+                      <div>
+                        <h3 class="font-serif text-base sm:text-lg font-bold text-ink leading-snug">${escapeHtml(item.title)}</h3>
+                        ${item.localName ? `<div class="text-xs font-medium text-stoneWarm mt-0.5">地區語言原名：${escapeHtml(item.localName)}</div>` : ''}
+                      </div>
+
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-stoneWarm pt-1">
+                        <div><strong class="text-ink">📍 詳細地址：</strong>${escapeHtml(item.address || '待確認')}</div>
+                        <div><strong class="text-ink">🕒 營業時間：</strong>${escapeHtml(item.hours || '待確認')}</div>
+                        <div><strong class="text-ink">☔ 雨天備案：</strong>${escapeHtml(item.rainBackup || '待確認')}</div>
+                        <div><strong class="text-ink">🪑 休息／用餐據點：</strong>${escapeHtml(item.restSpot || '待確認')}</div>
+                      </div>
+
+                      <div class="p-3 rounded-xl bg-washi/60 border border-sand text-xs text-ink flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <strong class="text-hinoki">📋 行程與待確認備註：</strong>${escapeHtml(item.notes || '待確認')}
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                          <span class="px-2 py-0.5 rounded-md font-semibold ${getBurdenBadgeClass(item.walkBurden)}">步行負擔：${escapeHtml(item.walkBurden)}</span>
+                          ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="text-terracotta hover:underline font-semibold">官方／地圖連結 ↗</a>` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-sand shrink-0">
+                      <div class="flex items-center gap-1.5">
+                        <button onclick="moveItem('${item.id}', -1)" ${isFirst ? 'disabled' : ''} title="上移順序" class="p-2 rounded-xl border border-sandDark bg-white hover:bg-washi disabled:opacity-35 text-xs font-bold text-ink">↑</button>
+                        <button onclick="moveItem('${item.id}', 1)" ${isLast ? 'disabled' : ''} title="下移順序" class="p-2 rounded-xl border border-sandDark bg-white hover:bg-washi disabled:opacity-35 text-xs font-bold text-ink">↓</button>
+                        <button onclick="openItemModal('${item.id}')" class="px-3 py-2 rounded-xl bg-hinoki hover:bg-hinokiDark text-white text-xs font-semibold">✏️ 編輯</button>
+                        <button onclick="requestDeleteItem('${item.id}')" class="px-3 py-2 rounded-xl border border-terracotta/40 bg-terracottaLight hover:bg-terracotta hover:text-white text-terracottaDark text-xs font-semibold transition">🗑️ 刪除</button>
+                      </div>
+                      <div class="flex items-center gap-1 text-xs">
+                        <span class="text-stoneWarm">調動日期：</span>
+                        <select onchange="moveItemToDay('${item.id}', Number(this.value))" class="rounded-lg border border-sandDark bg-white px-2 py-1 text-xs text-ink font-medium">
+                          ${moveDayOptions}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        html += `</div></div>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderComparisonTable(trip, filteredItems) {
+      const tbody = document.getElementById('comparison-tbody');
+      const sortBy = document.getElementById('sort-comparison').value;
+
+      const sorted = [...filteredItems].sort((a, b) => {
+        if (sortBy === 'walkAsc') return (Number(a.walkKm) || 0) - (Number(b.walkKm) || 0);
+        if (sortBy === 'walkDesc') return (Number(b.walkKm) || 0) - (Number(a.walkKm) || 0);
+        if (sortBy === 'transitAsc') return (Number(a.transitMinsFromPrev) || 0) - (Number(b.transitMinsFromPrev) || 0);
+        return 0;
+      });
+
+      if (sorted.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-stoneWarm">無符合篩選條件之景點或店舖資料。</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = sorted.map(item => `
+        <tr class="hover:bg-washi/60 align-top">
+          <td class="p-3.5 whitespace-nowrap">
+            <span class="font-mono font-bold text-hinoki">Day ${item.day}</span>
+            <div class="font-mono text-xs text-stoneWarm">${escapeHtml(item.start)}–${escapeHtml(item.end)}</div>
+          </td>
+          <td class="p-3.5">
+            <div class="font-serif font-bold text-ink">${escapeHtml(item.title)}</div>
+            ${item.localName ? `<div class="text-xs text-stoneWarm mt-0.5">${escapeHtml(item.localName)}</div>` : ''}
+          </td>
+          <td class="p-3.5 text-ink">
+            <span class="inline-block px-2 py-0.5 rounded bg-washi border border-sand text-stoneWarm font-medium text-xs mb-1">${escapeHtml(item.district)}</span>
+            <div class="text-xs leading-relaxed">${escapeHtml(item.address || '待確認')}</div>
+          </td>
+          <td class="p-3.5 text-xs text-ink leading-relaxed">${escapeHtml(item.hours || '待確認')}</td>
+          <td class="p-3.5 text-xs text-ink">
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium mb-1 ${getWeatherBadgeClass(item.weather)}">${escapeHtml(item.weather)}</span>
+            <div class="leading-relaxed">${escapeHtml(item.rainBackup || '待確認')}</div>
+          </td>
+          <td class="p-3.5 text-xs">
+            <div class="font-mono font-semibold text-terracotta">${item.transitMinsFromPrev > 0 ? `前站至此約 ${item.transitMinsFromPrev} 分鐘` : '起始站／同地點'}</div>
+            <div class="text-stoneWarm mt-0.5">${escapeHtml(item.distanceFromHotel || '待確認')}</div>
+          </td>
+          <td class="p-3.5 whitespace-nowrap">
+            <span class="px-2 py-1 rounded-md font-mono text-xs font-semibold ${getBurdenBadgeClass(item.walkBurden)}">${Number(item.walkKm || 0).toFixed(1)} km（${escapeHtml(item.walkBurden)}）</span>
+          </td>
+          <td class="p-3.5 text-xs text-stoneWarm leading-relaxed">${escapeHtml(item.restSpot || '待確認')}</td>
+          <td class="p-3.5">
+            <div class="space-y-1">
+              <span class="inline-block px-2 py-0.5 rounded border text-xs font-semibold ${getStatusBadgeClass(item.bookingStatus)}">${escapeHtml(item.bookingStatus)}</span>
+              ${item.purchaseStatus !== '免預約' ? `<span class="inline-block px-2 py-0.5 rounded border text-xs font-semibold ${getStatusBadgeClass(item.purchaseStatus)}">${escapeHtml(item.purchaseStatus)}</span>` : ''}
+            </div>
+            <button onclick="openItemModal('${item.id}')" class="mt-1.5 text-xs text-hinoki hover:text-terracotta underline font-semibold block">✏️ 編輯狀態</button>
+          </td>
+          <td class="p-3.5 whitespace-nowrap">
+            ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 rounded-lg bg-hinoki text-white text-xs font-medium hover:bg-hinokiDark inline-block">官方連結 ↗</a>` : '<span class="text-stoneWarm text-xs">待確認</span>'}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderShoppingTable(trip) {
+      const tbody = document.getElementById('shopping-tbody');
+      const f = getFilterValues();
+
+      const filtered = trip.shopping.filter(item => {
+        if (f.day !== 'ALL' && String(item.day) !== String(f.day)) return false;
+        if (f.district !== 'ALL' && item.district !== f.district) return false;
+        if (f.status !== 'ALL' && item.status !== f.status) return false;
+        if (f.keyword) {
+          const hay = `${item.store} ${item.name} ${item.note || ''}`.toLowerCase();
+          if (!hay.includes(f.keyword)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-stoneWarm">目前篩選條件下無採購或待確認項目。</td></tr>`;
+        return;
+      }
+
+      const statuses = ['待確認', '待查', '已預約', '待購買', '已購買', '缺貨'];
+
+      tbody.innerHTML = filtered.map(item => `
+        <tr class="hover:bg-washi/60 align-top">
+          <td class="p-3 whitespace-nowrap">
+            <span class="font-mono font-bold text-hinoki">Day ${item.day}</span>
+            <div class="text-xs text-stoneWarm">${escapeHtml(item.district)}</div>
+          </td>
+          <td class="p-3 font-semibold text-ink">${escapeHtml(item.store)}</td>
+          <td class="p-3 font-bold text-ink">${escapeHtml(item.name)}</td>
+          <td class="p-3">
+            <div class="flex flex-wrap gap-1">
+              ${statuses.map(st => `
+                <button onclick="setShoppingStatus('${item.id}', '${st}')"
+                  class="px-2 py-1 rounded-lg text-xs font-semibold border transition ${item.status === st ? getStatusBadgeClass(st) + ' ring-2 ring-offset-1 ring-hinoki/50' : 'bg-white text-stoneWarm border-sand hover:bg-washi'}">
+                  ${st}
+                </button>
+              `).join('')}
+            </div>
+          </td>
+          <td class="p-3 whitespace-nowrap font-mono text-xs font-medium text-ink">${escapeHtml(item.price || '待確認')}</td>
+          <td class="p-3 text-stoneWarm text-xs leading-relaxed">${escapeHtml(item.note || '待確認')}</td>
+          <td class="p-3 whitespace-nowrap text-right space-x-1">
+            <button onclick="openShoppingModal('${item.id}')" class="px-2.5 py-1 rounded-lg bg-washi hover:bg-sand text-ink border border-sandDark text-xs font-semibold">✏️ 編輯</button>
+            <button onclick="requestDeleteShopping('${item.id}')" class="px-2.5 py-1 rounded-lg bg-terracottaLight hover:bg-terracotta hover:text-white text-terracottaDark border border-terracotta/30 text-xs font-semibold transition">🗑️ 刪除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderAll() {
+      const trip = getActiveTrip();
+      if (!trip) return;
+      sortTripItinerary(trip);
+      populateHeaderAndSelectors(trip);
+      const { conflicts, itemConflictMap } = detectConflicts(trip);
+      const filtered = filterItinerary(trip.itinerary);
+      updateKPIs(trip, filtered, conflicts);
+      renderTimeline(trip, filtered, itemConflictMap);
+      renderComparisonTable(trip, filtered);
+      renderShoppingTable(trip);
+    }
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-white text-stoneWarm hover:text-ink border border-sand';
+      });
+      document.getElementById('tab-btn-' + tabName).className = 'tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition bg-hinoki text-white shadow-sm';
+    }
+
+    // Multi-Trip Management
+    function switchTrip(tripId) {
+      appState.activeTripId = tripId;
+      saveAppState();
+      resetFilters();
+      showToast(`已切換至手帖：${getActiveTrip().name}`);
+    }
+
+    function autoCalcTripDays() {
+      const s = document.getElementById('trip-start-date').value;
+      const e = document.getElementById('trip-end-date').value;
+      if (s && e) {
+        const d1 = new Date(s);
+        const d2 = new Date(e);
+        const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+        if (diff >= 1 && diff <= 30) {
+          document.getElementById('trip-days-count').value = diff;
+        }
+      }
+    }
+
+    function openTripModal(isEdit) {
+      const modal = document.getElementById('trip-modal');
+      document.getElementById('trip-edit-mode').value = isEdit ? 'edit' : 'create';
+
+      if (isEdit) {
+        const trip = getActiveTrip();
+        document.getElementById('trip-modal-title').textContent = '編輯目前旅程資訊';
+        document.getElementById('trip-name').value = trip.name;
+        document.getElementById('trip-destination').value = trip.destination;
+        document.getElementById('trip-start-date').value = trip.startDate || '';
+        document.getElementById('trip-end-date').value = trip.endDate || '';
+        document.getElementById('trip-days-count').value = trip.daysCount || 4;
+        document.getElementById('trip-hotel').value = trip.hotel || '';
+        document.getElementById('trip-hotel-addr').value = trip.hotelAddress || '';
+        document.getElementById('trip-out-main').value = trip.outMain || '';
+        document.getElementById('trip-in-main').value = trip.inMain || '';
+        document.getElementById('trip-pnr').value = trip.pnr || '';
+        document.getElementById('trip-out-sub').value = trip.outSub || '';
+        document.getElementById('trip-in-sub').value = trip.inSub || '';
+      } else {
+        document.getElementById('trip-modal-title').textContent = '新增其他旅程';
+        document.getElementById('trip-name').value = '';
+        document.getElementById('trip-destination').value = '';
+        document.getElementById('trip-start-date').value = '';
+        document.getElementById('trip-end-date').value = '';
+        document.getElementById('trip-days-count').value = 4;
+        document.getElementById('trip-hotel').value = '待確認';
+        document.getElementById('trip-hotel-addr').value = '待確認';
+        document.getElementById('trip-out-main').value = '待確認';
+        document.getElementById('trip-in-main').value = '待確認';
+        document.getElementById('trip-pnr').value = '待確認';
+        document.getElementById('trip-out-sub').value = '待確認';
+        document.getElementById('trip-in-sub').value = '待確認';
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeTripModal() {
+      document.getElementById('trip-modal').classList.add('hidden');
+    }
+
+    function saveTrip(e) {
+      e.preventDefault();
+      const mode = document.getElementById('trip-edit-mode').value;
+      const name = document.getElementById('trip-name').value.trim();
+      const destination = document.getElementById('trip-destination').value.trim();
+      const startDate = document.getElementById('trip-start-date').value;
+      const endDate = document.getElementById('trip-end-date').value;
+      const daysCount = Math.max(1, Math.min(30, Number(document.getElementById('trip-days-count').value) || 4));
+      const hotel = document.getElementById('trip-hotel').value.trim() || '待確認';
+      const hotelAddress = document.getElementById('trip-hotel-addr').value.trim() || '待確認';
+      const outMain = document.getElementById('trip-out-main').value.trim() || '待確認';
+      const inMain = document.getElementById('trip-in-main').value.trim() || '待確認';
+      const pnr = document.getElementById('trip-pnr').value.trim() || '待確認';
+      const outSub = document.getElementById('trip-out-sub').value.trim() || '待確認';
+      const inSub = document.getElementById('trip-in-sub').value.trim() || '待確認';
+
+      if (mode === 'edit') {
+        const trip = getActiveTrip();
+        Object.assign(trip, { name, destination, startDate, endDate, daysCount, hotel, hotelAddress, outMain, inMain, pnr, outSub, inSub });
+        showToast('已更新目前旅程資訊。');
+      } else {
+        const newTrip = {
+          id: 'trip-' + Date.now(),
+          name, destination, startDate, endDate, daysCount,
+          hotel, hotelAddress, outMain, inMain, pnr, outSub, inSub,
+          itinerary: [],
+          shopping: []
+        };
+        appState.trips.push(newTrip);
+        appState.activeTripId = newTrip.id;
+        showToast(`已建立並切換至新旅程：「${name}」`);
+      }
+
+      saveAppState();
+      closeTripModal();
+      resetFilters();
+    }
+
+    function requestDeleteTrip() {
+      if (appState.trips.length <= 1) {
+        showToast('至少需保留一個旅程；若需還原內容，請點擊「重置預設台北行程」。', 'error');
+        return;
+      }
+      const trip = getActiveTrip();
+      openConfirmModal(
+        '確認刪除此旅程？',
+        trip.name,
+        '確定要刪除此旅程及其包含的所有每日行程與採購資料嗎？刪除後將無法復原。',
+        () => {
+          appState.trips = appState.trips.filter(t => t.id !== trip.id);
+          appState.activeTripId = appState.trips[0].id;
+          saveAppState();
+          resetFilters();
+          showToast(`已刪除旅程：「${trip.name}」`);
+        }
+      );
+    }
+
+    function requestResetDefault() {
+      openConfirmModal(
+        '確認重置為預設台北行程？',
+        '2026 台北 4 天 3 夜美食購物行（12/12–12/15）',
+        '此操作將還原預設的台北4天3夜完整行程資料（不影響您新增的其他旅程）。確定要重置嗎？',
+        () => {
+          const fresh = createDefaultTaipeiTrip();
+          const idx = appState.trips.findIndex(t => t.id === fresh.id);
+          if (idx !== -1) {
+            appState.trips[idx] = fresh;
+          } else {
+            appState.trips.unshift(fresh);
+          }
+          appState.activeTripId = fresh.id;
+          saveAppState();
+          resetFilters();
+          showToast('已重置為預設台北 4 天 3 夜行程。');
+        }
+      );
+    }
+
+    function moveItem(id, direction) {
+      const trip = getActiveTrip();
+      const idx = trip.itinerary.findIndex(i => i.id === id);
+      if (idx === -1) return;
+      const item = trip.itinerary[idx];
+      const dayItems = trip.itinerary.filter(i => Number(i.day) === Number(item.day));
+      const posInDay = dayItems.findIndex(i => i.id === id);
+      const targetPos = posInDay + direction;
+      if (targetPos < 0 || targetPos >= dayItems.length) return;
+
+      const targetItem = dayItems[targetPos];
+      const origStart = item.start;
+      const origEnd = item.end;
+      item.start = targetItem.start;
+      item.end = targetItem.end;
+      targetItem.start = origStart;
+      targetItem.end = origEnd;
+
+      sortTripItinerary(trip);
+      saveAppState();
+      renderAll();
+      showToast('已調整順序與時段，並重新檢查交通銜接。');
+    }
+
+    function handleDragStart(e, id) {
+      draggedItemId = id;
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, targetId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (!draggedItemId || draggedItemId === targetId) return;
+
+      const trip = getActiveTrip();
+      const moved = trip.itinerary.find(i => i.id === draggedItemId);
+      const target = trip.itinerary.find(i => i.id === targetId);
+      if (!moved || !target) return;
+
+      moved.day = target.day;
+      draggedItemId = null;
+      saveAppState();
+      renderAll();
+      showToast(`已移動「${moved.title}」至 Day ${target.day}，請確認時間與車程。`);
+    }
+
+    function moveItemToDay(id, newDay) {
+      const trip = getActiveTrip();
+      const item = trip.itinerary.find(i => i.id === id);
+      if (!item) return;
+      item.day = Number(newDay);
+      saveAppState();
+      renderAll();
+      const info = getDayDateInfo(trip, newDay);
+      showToast(`已將「${item.title}」調動至 Day ${newDay}（${info.weekday}）。`);
+    }
+
+    function requestDeleteItem(id) {
+      const trip = getActiveTrip();
+      const item = trip.itinerary.find(i => i.id === id);
+      if (!item) return;
+      openConfirmModal(
+        '確認刪除此行程項目？',
+        `Day ${item.day}（${item.start}–${item.end}）${item.title}`,
+        '確定要刪除此項目嗎？刪除後將無法復原。',
+        () => {
+          trip.itinerary = trip.itinerary.filter(i => i.id !== id);
+          saveAppState();
+          renderAll();
+          showToast(`已刪除行程：「${item.title}」`);
+        }
+      );
+    }
+
+    function openItemModal(id = null, presetDay = 1) {
+      const trip = getActiveTrip();
+      const modal = document.getElementById('item-modal');
+      const form = document.getElementById('item-form');
+      form.reset();
+
+      const daySel = document.getElementById('edit-day');
+      let dayOpts = '';
+      for (let d = 1; d <= trip.daysCount; d++) {
+        const info = getDayDateInfo(trip, d);
+        dayOpts += `<option value="${d}">Day ${d}（${info.dateStr} ${info.weekday}）</option>`;
+      }
+      daySel.innerHTML = dayOpts;
+
+      if (id) {
+        const item = trip.itinerary.find(i => i.id === id);
+        if (!item) return;
+        document.getElementById('modal-title').textContent = '編輯行程項目';
+        document.getElementById('edit-id').value = item.id;
+        daySel.value = String(item.day);
+        document.getElementById('edit-start').value = item.start;
+        document.getElementById('edit-end').value = item.end;
+        document.getElementById('edit-title').value = item.title;
+        document.getElementById('edit-local-name').value = item.localName || '';
+        document.getElementById('edit-district').value = item.district || '';
+        document.getElementById('edit-category').value = item.category || '景點漫步';
+        document.getElementById('edit-address').value = item.address || '';
+        document.getElementById('edit-hours').value = item.hours || '';
+        document.getElementById('edit-transit-mode').value = item.transitMode || '捷運';
+        document.getElementById('edit-transit-mins').value = item.transitMinsFromPrev || 0;
+        document.getElementById('edit-walk-km').value = item.walkKm || 0;
+        document.getElementById('edit-walk-burden').value = item.walkBurden || '輕鬆';
+        document.getElementById('edit-transit-desc').value = item.transitDesc || '';
+        document.getElementById('edit-weather').value = item.weather || '全室內';
+        document.getElementById('edit-rain-backup').value = item.rainBackup || '';
+        document.getElementById('edit-booking-status').value = item.bookingStatus || '預約待確認';
+        document.getElementById('edit-purchase-status').value = item.purchaseStatus || '免預約';
+        document.getElementById('edit-distance-hotel').value = item.distanceFromHotel || '';
+        document.getElementById('edit-rest-spot').value = item.restSpot || '';
+        document.getElementById('edit-link').value = item.link || '';
+        document.getElementById('edit-notes').value = item.notes || '';
+      } else {
+        document.getElementById('modal-title').textContent = '新增行程項目';
+        document.getElementById('edit-id').value = '';
+        daySel.value = String(presetDay || 1);
+        document.getElementById('edit-start').value = '14:00';
+        document.getElementById('edit-end').value = '15:30';
+        document.getElementById('edit-booking-status').value = '預約待確認';
+        document.getElementById('edit-purchase-status').value = '免預約';
+        document.getElementById('edit-notes').value = '待確認';
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeItemModal() {
+      document.getElementById('item-modal').classList.add('hidden');
+    }
+
+    function saveItineraryItem(e) {
+      e.preventDefault();
+      const trip = getActiveTrip();
+      const id = document.getElementById('edit-id').value;
+
+      const payload = {
+        id: id || 'item-' + Date.now(),
+        day: Number(document.getElementById('edit-day').value),
+        start: document.getElementById('edit-start').value,
+        end: document.getElementById('edit-end').value,
+        title: document.getElementById('edit-title').value.trim(),
+        localName: document.getElementById('edit-local-name').value.trim(),
+        district: document.getElementById('edit-district').value.trim() || '未分類地區',
+        category: document.getElementById('edit-category').value,
+        address: document.getElementById('edit-address').value.trim() || '待確認',
+        hours: document.getElementById('edit-hours').value.trim() || '待確認',
+        transitMode: document.getElementById('edit-transit-mode').value,
+        transitMinsFromPrev: Number(document.getElementById('edit-transit-mins').value) || 0,
+        walkKm: Number(document.getElementById('edit-walk-km').value) || 0,
+        walkBurden: document.getElementById('edit-walk-burden').value,
+        transitDesc: document.getElementById('edit-transit-desc').value.trim(),
+        weather: document.getElementById('edit-weather').value,
+        rainBackup: document.getElementById('edit-rain-backup').value.trim() || '待確認',
+        bookingStatus: document.getElementById('edit-booking-status').value,
+        purchaseStatus: document.getElementById('edit-purchase-status').value,
+        distanceFromHotel: document.getElementById('edit-distance-hotel').value.trim() || '待確認',
+        restSpot: document.getElementById('edit-rest-spot').value.trim() || '待確認',
+        link: document.getElementById('edit-link').value.trim(),
+        notes: document.getElementById('edit-notes').value.trim() || '待確認',
+        closedWeekdays: []
+      };
+
+      if (id) {
+        const idx = trip.itinerary.findIndex(i => i.id === id);
+        if (idx !== -1) {
+          payload.closedWeekdays = trip.itinerary[idx].closedWeekdays || [];
+          trip.itinerary[idx] = payload;
+        }
+        showToast('已更新行程項目並完成衝突檢查。');
+      } else {
+        trip.itinerary.push(payload);
+        showToast('已新增行程項目至時間軸。');
+      }
+
+      saveAppState();
+      closeItemModal();
+      renderAll();
+    }
+
+    function setShoppingStatus(id, newStatus) {
+      const trip = getActiveTrip();
+      const item = trip.shopping.find(s => s.id === id);
+      if (!item) return;
+      item.status = newStatus;
+      saveAppState();
+      renderAll();
+      showToast(`已更新「${item.name}」狀態為：${newStatus}`);
+    }
+
+    function openShoppingModal(id = null) {
+      const trip = getActiveTrip();
+      const modal = document.getElementById('shopping-modal');
+      const daySel = document.getElementById('shop-day');
+      let dayOpts = '';
+      for (let d = 1; d <= trip.daysCount; d++) {
+        const info = getDayDateInfo(trip, d);
+        dayOpts += `<option value="${d}">Day ${d}（${info.dateStr}）</option>`;
+      }
+      daySel.innerHTML = dayOpts;
+
+      if (id) {
+        const item = trip.shopping.find(s => s.id === id);
+        if (!item) return;
+        document.getElementById('shop-modal-title').textContent = '編輯採購／待確認項目';
+        document.getElementById('shop-id').value = item.id;
+        daySel.value = String(item.day);
+        document.getElementById('shop-district').value = item.district;
+        document.getElementById('shop-store').value = item.store;
+        document.getElementById('shop-name').value = item.name;
+        document.getElementById('shop-status').value = item.status;
+        document.getElementById('shop-price').value = item.price || '待確認';
+        document.getElementById('shop-note').value = item.note || '';
+      } else {
+        document.getElementById('shop-modal-title').textContent = '新增採購／待確認項目';
+        document.getElementById('shop-id').value = '';
+        daySel.value = '1';
+        document.getElementById('shop-district').value = '';
+        document.getElementById('shop-store').value = '';
+        document.getElementById('shop-name').value = '';
+        document.getElementById('shop-status').value = '待確認';
+        document.getElementById('shop-price').value = '待確認';
+        document.getElementById('shop-note').value = '待確認';
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeShoppingModal() {
+      document.getElementById('shopping-modal').classList.add('hidden');
+    }
+
+    function saveShoppingItem(e) {
+      e.preventDefault();
+      const trip = getActiveTrip();
+      const id = document.getElementById('shop-id').value;
+      const payload = {
+        id: id || 'shop-' + Date.now(),
+        day: Number(document.getElementById('shop-day').value),
+        district: document.getElementById('shop-district').value.trim() || '未分類',
+        store: document.getElementById('shop-store').value.trim(),
+        name: document.getElementById('shop-name').value.trim(),
+        status: document.getElementById('shop-status').value,
+        price: document.getElementById('shop-price').value.trim() || '待確認',
+        note: document.getElementById('shop-note').value.trim() || '待確認'
+      };
+
+      if (id) {
+        const idx = trip.shopping.findIndex(s => s.id === id);
+        if (idx !== -1) trip.shopping[idx] = payload;
+        showToast('已更新採購／待確認項目。');
+      } else {
+        trip.shopping.push(payload);
+        showToast('已新增項目至追蹤器。');
+      }
+
+      saveAppState();
+      closeShoppingModal();
+      renderAll();
+    }
+
+    function requestDeleteShopping(id) {
+      const trip = getActiveTrip();
+      const item = trip.shopping.find(s => s.id === id);
+      if (!item) return;
+      openConfirmModal(
+        '確認刪除此採購／待確認項目？',
+        `${item.store} — ${item.name}`,
+        '確定要刪除此項目嗎？刪除後將無法復原。',
+        () => {
+          trip.shopping = trip.shopping.filter(s => s.id !== id);
+          saveAppState();
+          renderAll();
+          showToast(`已刪除項目：「${item.name}」`);
+        }
+      );
+    }
+
+    function openConfirmModal(title, targetText, desc, onConfirmFn) {
+      document.getElementById('confirm-modal-title').textContent = title;
+      document.getElementById('confirm-modal-target').textContent = targetText;
+      document.getElementById('confirm-modal-desc').textContent = desc;
+      pendingConfirmAction = onConfirmFn;
+      document.getElementById('confirm-modal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+      pendingConfirmAction = null;
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    function executePendingConfirm() {
+      if (typeof pendingConfirmAction === 'function') {
+        pendingConfirmAction();
+      }
+      closeConfirmModal();
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify(appState, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Taipei_Travel_Journal_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('已匯出全部旅程 JSON 備份檔案。');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported && Array.isArray(imported.trips) && imported.trips.length > 0) {
+            appState = imported;
+            saveAppState();
+            resetFilters();
+            showToast('成功匯入旅程備份資料！');
+          } else {
+            showToast('JSON 檔案格式不符，請確認檔案來源。', 'error');
+          }
+        } catch (err) {
+          showToast('讀取 JSON 檔案失敗，請確認檔案未損毀。', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function copyHotelAddress() {
+      const trip = getActiveTrip();
+      copyText(`${trip.hotelAddress}（${trip.hotel}）`);
+    }
+
+    function copyText(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(`已複製：${text}`);
+      } catch (err) {
+        showToast('複製失敗，請手動選取。', 'error');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const bg = type === 'error' ? 'bg-terracottaDark border-terracotta' : 'bg-hinokiDark border-brass';
+      el.className = `${bg} text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-xl border pointer-events-auto transition-opacity duration-300`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 3400);
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.onload = async function () {
+      renderAll();
+      updateCloudStatusUI(gistConfig.gistId ? 'synced' : 'idle');
+      if (gistConfig.gistId && gistConfig.autoPull) {
+        await pullFromGist(false);
+      }
+    };
+  </script>
+</body>
+</html>
